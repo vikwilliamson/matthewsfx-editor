@@ -5,11 +5,12 @@ import FormControl from '@mui/material/FormControl';
 import HelpCenterOutlinedIcon from '@mui/icons-material/HelpCenterOutlined';
 import MenuItem from '@mui/material/MenuItem';
 import Select, { SelectChangeEvent } from '@mui/material/Select';
+import Tabs from '@mui/material/Tabs';
+import Tab from '@mui/material/Tab';
 // ASSETS/DATA
 import logo  from '../../assets/logo.svg'
 import '../../styles/AppHeader.css';
-import Tabs from '@mui/material/Tabs';
-import Tab from '@mui/material/Tab';
+
 
 type AppHeaderProps = {
     status: string;

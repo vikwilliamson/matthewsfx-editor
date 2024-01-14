@@ -1,12 +1,13 @@
 // GLOBALS
 import React, { useEffect, useState } from 'react';
 // COMPONENTS
+import AppContent from './AppContent';
 import AppHeader from '../chrome/AppHeader';
 import LeftSideBar from '../chrome/LeftSideBar';
-import AppContent from './AppContent';
+
+import Grid from '@mui/material/Grid';
 // STYLES
 import '../../styles/App.css';
-import Grid from '@mui/material/Grid';
 // ASSETS/DATA
 
 const App: React.FC = () => {
