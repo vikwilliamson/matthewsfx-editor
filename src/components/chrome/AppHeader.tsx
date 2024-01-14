@@ -1,6 +1,7 @@
 // GLOBALS
 import { useState } from 'react';
 // COMPONENTS
+import Box from '@mui/material/Box';
 import FormControl from '@mui/material/FormControl';
 import HelpCenterOutlinedIcon from '@mui/icons-material/HelpCenterOutlined';
 import MenuItem from '@mui/material/MenuItem';
@@ -24,8 +25,8 @@ const AppHeader: React.FC<AppHeaderProps> = ({ status }: AppHeaderProps) => {
         setSelectedProduct(event.target.value as string);
     }
 
-    const handleTabSelection = (event: any) => {
-        setSelectedTab(event.target.value as string);
+    const handleTabSelection = (event: React.SyntheticEvent, newTab: string) => {
+        setSelectedTab(newTab);
     }
 
     return(
@@ -54,12 +55,14 @@ const AppHeader: React.FC<AppHeaderProps> = ({ status }: AppHeaderProps) => {
                 </div>
             </div>
             <div className='tab-container'>
+            <Box sx={{ width: '100%' }}>
             <Tabs value={selectedTab} onChange={handleTabSelection}>
-                <Tab label='Preset Organizer' value={'Preset Organizer'}/>
+                <Tab label='Preset Organizer' value={'Preset Organizer'} defaultChecked />
                 <Tab label='Preset Editor' value={'Preset Editor'}/>
                 <Tab label='Smart Creators' value={'Smart Creators'}/>
                 <Tab label='Global Settings' value={'Global Settings'}/>
             </Tabs>
+            </Box>
             </div>
         </div>
     )
