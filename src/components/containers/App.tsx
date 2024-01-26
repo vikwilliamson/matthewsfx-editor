@@ -12,6 +12,17 @@ import '../../styles/App.css';
 import Box from '@mui/material/Box';
 // ASSETS/DATA
 
+export type Bank = {
+  bankName: string;
+  presets: Preset[];
+}
+
+export type Preset = {
+  presetName: string;
+  presetDescription?: string;
+  messages: Array<Array<string>>;
+}
+
 const App: React.FC = () => {
   const [midiAccessObject, setMidiAccessObject] = useState<WebMidi.MIDIAccess | null>(null);
   const [deviceStatus, setDeviceStatus] = useState<string>('disconnected');
@@ -28,6 +39,8 @@ const App: React.FC = () => {
     boxShadow: 24,
     p: 4,
   };
+  const [presets, setPresets] = useState<Bank[]>([{ bankName: 'Bank 1', presets: [{ presetName: 'TestPreset1', presetDescription: 'A sample test preset', messages: [['192', '0'], ['192', '1']] }, { presetName: 'TestPreset2', presetDescription: 'Sample text for a desc', messages: [['192', '1'], ['192', '0']] }]},
+   { bankName: 'Bank 2', presets: [{ presetName: 'Test2Preset1', presetDescription: 'A description for the preset', messages: [['192', '1', '192', '0']] }] }]);
 
   useEffect(() => {
     const initMidi = async () => {
@@ -75,10 +88,10 @@ const App: React.FC = () => {
           </p>
         </Box>
       </Modal>
-    <Grid item xs={2}>
-      <LeftSideBar />
+    <Grid item xs={3}>
+      <LeftSideBar banks={presets} />
     </Grid>
-    <Grid item xs={14}>
+    <Grid item xs={13}>
       <AppHeader status={deviceStatus} />
       <AppContent />
     </Grid>
