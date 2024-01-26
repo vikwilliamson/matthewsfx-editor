@@ -7,7 +7,7 @@ type LeftSideBarProps = {
 const LeftSideBar: React.FC<LeftSideBarProps> = ({ banks }: LeftSideBarProps) => {
 
     return(
-        <div style={{ border: '2px solid black', height: '100vh', width: '100%' }}>
+        <div style={{ border: '2px solid white', height: '100vh', width: '100%', color: 'white' }}>
             <h3 style={{ textDecoration: 'underline' }}>PRESETS</h3>
             {banks.map((bank, i) => {
                 // Create an array of preset cells to display inside a given bank
@@ -58,7 +58,7 @@ const LeftSideBar: React.FC<LeftSideBarProps> = ({ banks }: LeftSideBarProps) =>
                 });
 
                 return ( 
-                        <div key={`${bank.bankName}${i}`} style={{ border: '1px solid black', marginBottom: '1rem' }}>
+                        <div key={`${bank.bankName}${i}`} style={{ border: '1px solid white', marginBottom: '1rem' }}>
                             <p style={{ textDecoration: 'underline' }}>{bank.bankName}</p>
                             {presetCells}
                         </div>
