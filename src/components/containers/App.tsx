@@ -49,10 +49,10 @@ const App: React.FC = () => {
 
     return (
     <Grid className="App" container columns={16}>
-    <Grid item xs={2}>
+    <Grid item xs={3}>
       <LeftSideBar banks={presets} />
     </Grid>
-    <Grid item xs={14}>
+    <Grid item xs={13}>
       <AppHeader status={deviceStatus} />
       <AppContent />
     </Grid>
