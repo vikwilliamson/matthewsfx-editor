@@ -1,22 +1,25 @@
-import { Bank, Preset } from "../containers/App";
+// ASSETS/DATA
+import { Bank, Preset } from '../../types';
 
 type LeftSideBarProps = {
-    banks: Bank[];
+    userBanks: Bank[];
 }
 
-const LeftSideBar: React.FC<LeftSideBarProps> = ({ banks }: LeftSideBarProps) => {
+const LeftSideBar: React.FC<LeftSideBarProps> = ({ userBanks }: LeftSideBarProps) => {
+    const allBanks = Array.from({ length: 30 }, (bank, index) => {
+        return userBanks[index] ?? { bankName: `Bank ${index + 1}`, presets: [] }
+      })
 
     return(
-        <div style={{ border: '2px solid white', height: '100vh', width: '100%', color: 'white' }}>
+        <div style={{ border: '2px solid white', color: 'white', height: '100vh', overflow: 'auto', width: '100%',  }}>
             <h3 style={{ textDecoration: 'underline' }}>PRESETS</h3>
-            {banks.map((bank, i) => {
+            {allBanks.map((bank, i) => {
                 // Create an array of preset cells to display inside a given bank
                 const presetCells = Array.from({ length: 7 }, (cell, index) => {
                     let preset: Preset | undefined = undefined;
                     let prefix;
                     if(index < bank.presets.length) {
                     preset = bank.presets[index];
-                    console.log('Preset for Cell', preset)
 
                     // Extract this logic
                     if (index + 1 === 5) {

@@ -11,34 +11,36 @@ import Tab from '@mui/material/Tab';
 // ASSETS/DATA
 import logo  from '../../assets/MFXLogo.svg'
 import '../../styles/AppHeader.css';
+import { EditorTab, SetStateAction } from '../../types';
 
 
 type AppHeaderProps = {
+    currentTab: EditorTab;
+    handleSelectTab: SetStateAction<EditorTab>;
     status: string;
 }
 
-const AppHeader: React.FC<AppHeaderProps> = ({ status }: AppHeaderProps) => {
+const AppHeader: React.FC<AppHeaderProps> = ({ currentTab, handleSelectTab, status }: AppHeaderProps) => {
     const [selectedProduct, setSelectedProduct] = useState<string>("The Futurist");
-    const [selectedTab, setSelectedTab] = useState<string>("Preset Organizer");
 
     const handleProductSelection = (event: SelectChangeEvent) => {
         setSelectedProduct(event.target.value as string);
     }
 
-    const handleTabSelection = (event: React.SyntheticEvent, newTab: string) => {
-        setSelectedTab(newTab);
+    const handleTabSelection = (event: React.SyntheticEvent, newTab: EditorTab) => {
+        handleSelectTab(newTab);
     }
 
     return(
         <>
-            <div className="app-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', }}>
+            <div className="app-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     <FormControl>
                         <Select
                             autoWidth
                             id="product-selection-dropdown"
                             value={selectedProduct}
                             onChange={handleProductSelection}
-                            style={{ backgroundColor: 'gray', color: 'white', opacity: '50%', minWidth: '10rem' }}
+                            style={{ backgroundColor: 'gray', color: 'white', opacity: '50%', minWidth: '10rem', marginLeft: '10px' }}
                             disabled
                         >
                         <MenuItem value="The Futurist">The Futurist</MenuItem>
@@ -56,13 +58,13 @@ const AppHeader: React.FC<AppHeaderProps> = ({ status }: AppHeaderProps) => {
                         <a href='https://www.matthewseffects.com/editor_manual/' target='_blank' rel='noreferrer'><HelpCenterOutlinedIcon /></a>
                     </div>
                 </div>
-                <div className='tab-container' style={{ display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
-                <Box sx={{ width: '100%' }}>
-                <Tabs value={selectedTab} onChange={handleTabSelection} textColor='inherit' variant='fullWidth'>
-                    <Tab label='Preset Organizer' value={'Preset Organizer'} defaultChecked />
-                    <Tab label='Preset Editor' value={'Preset Editor'}/>
-                    <Tab label='Smart Creators' value={'Smart Creators'}/>
-                    <Tab label='Global Settings' value={'Global Settings'}/>
+                <div className='tab-container' style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', borderBottom: '1px solid white' }}>
+                <Box sx={{ width: '100%', pb: 1, pl: 1, pr: 1 }}>
+                <Tabs value={currentTab} onChange={handleTabSelection} textColor='inherit' variant='fullWidth'>
+                    <Tab label={EditorTab.Organizer} value={EditorTab.Organizer} defaultChecked />
+                    <Tab label={EditorTab.Editor} value={EditorTab.Editor}/>
+                    <Tab label={EditorTab.Creators} value={EditorTab.Creators}/>
+                    <Tab label={EditorTab.Settings} value={EditorTab.Settings}/>
                 </Tabs>
                 </Box>
             </div>

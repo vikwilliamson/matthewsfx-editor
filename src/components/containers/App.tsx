@@ -11,24 +11,15 @@ import Modal from '@mui/material/Modal';
 import '../../styles/App.css';
 import Box from '@mui/material/Box';
 // ASSETS/DATA
-
-export type Bank = {
-  bankName: string;
-  presets: Preset[];
-}
-
-export type Preset = {
-  presetName: string;
-  presetDescription?: string;
-  messages: Array<Array<string>>;
-}
+import { Bank, EditorTab } from '../../types';
 
 const App: React.FC = () => {
-  const [midiAccessObject, setMidiAccessObject] = useState<WebMidi.MIDIAccess | null>(null);
-  const [deviceStatus, setDeviceStatus] = useState<string>('disconnected');
   const [compatibilityModalOpen, setCompatibilityModalOpen] = useState<boolean>(false);
+  const [deviceStatus, setDeviceStatus] = useState<string>('disconnected');
+  const [midiAccessObject, setMidiAccessObject] = useState<WebMidi.MIDIAccess | null>(null);
+  const [selectedTab, setSelectedTab] = useState<EditorTab>(EditorTab.Organizer);
 
-  const style = {
+  const modalStyle = {
     position: 'absolute' as 'absolute',
     top: '50%',
     left: '50%',
@@ -79,7 +70,7 @@ const App: React.FC = () => {
     return (
     <Grid className="App" container columns={16}>
       <Modal open={compatibilityModalOpen}>
-        <Box sx={style}>
+        <Box sx={modalStyle}>
           <h2>
             Browser Incompatible
           </h2>
@@ -89,11 +80,11 @@ const App: React.FC = () => {
         </Box>
       </Modal>
     <Grid item xs={3}>
-      <LeftSideBar banks={presets} />
+      <LeftSideBar userBanks={presets} />
     </Grid>
     <Grid item xs={13}>
-      <AppHeader status={deviceStatus} />
-      <AppContent />
+      <AppHeader status={deviceStatus} currentTab={selectedTab} handleSelectTab={setSelectedTab} />
+      <AppContent currentTab={selectedTab}  />
     </Grid>
   </Grid>
   );
