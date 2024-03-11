@@ -144,7 +144,7 @@ const GlobalSettings: React.FC<GlobalSettingsProps> = ({ midiAccess, status }) =
             midiAccess?.inputs.forEach((input) => input.onmidimessage = handleMidiMessage);
             output.current = identifyOutput(midiAccess);
             }
-            if(output.current) {
+            if(output.current?.send) {
                 output.current.send(messages.globalSettings.messageData);
             }
         }
