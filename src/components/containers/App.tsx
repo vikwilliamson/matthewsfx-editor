@@ -38,7 +38,7 @@ const App: React.FC = () => {
       // Check if this browser is compatible first
       if(navigator.requestMIDIAccess) {
         try {
-          const access = await navigator.requestMIDIAccess();
+          const access = await navigator.requestMIDIAccess({ sysex: true });
           setMidiAccessObject(access);
           // Check for available MIDI devices on initial load
           const devices = access.inputs.values();
@@ -84,7 +84,7 @@ const App: React.FC = () => {
     </Grid>
     <Grid item xs={13}>
       <AppHeader status={deviceStatus} currentTab={selectedTab} handleSelectTab={setSelectedTab} />
-      <AppContent currentTab={selectedTab}  />
+      <AppContent currentTab={selectedTab} status={deviceStatus} midiAccess={midiAccessObject} />
     </Grid>
   </Grid>
   );
