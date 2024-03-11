@@ -8,9 +8,11 @@ import { EditorTab } from "../../types";
 
 type AppContentProps = {
     currentTab: EditorTab;
+    midiAccess: WebMidi.MIDIAccess | null;
+    status: string;
 }
 
-const AppContent: React.FC<AppContentProps> = ({ currentTab }: AppContentProps) => {
+const AppContent: React.FC<AppContentProps> = ({ currentTab, midiAccess, status }: AppContentProps) => {
     // Determine content to render - default should be Preset Organizer
     let contentToRender;
     switch(currentTab) {
@@ -21,7 +23,7 @@ const AppContent: React.FC<AppContentProps> = ({ currentTab }: AppContentProps) 
             contentToRender = <PresetEditor />;
             break;
         case EditorTab.Settings: 
-            contentToRender = <GlobalSettings />;
+            contentToRender = <GlobalSettings midiAccess={midiAccess} status={status} />;
             break;
         case EditorTab.Organizer: 
         default:

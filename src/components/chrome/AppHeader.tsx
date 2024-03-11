@@ -43,8 +43,8 @@ const AppHeader: React.FC<AppHeaderProps> = ({ currentTab, handleSelectTab, stat
                             style={{ backgroundColor: 'gray', color: 'white', opacity: '50%', minWidth: '10rem', marginLeft: '10px' }}
                             disabled
                         >
-                        <MenuItem value="The Futurist">The Futurist</MenuItem>
-                        <MenuItem value="New Creation">New Creation</MenuItem>
+                        <MenuItem id="futurist" value="The Futurist">The Futurist</MenuItem>
+                        <MenuItem id="newCreation" value="New Creation">New Creation</MenuItem>
                     </Select>
                     </FormControl>
                     <div className='logo-container'>
