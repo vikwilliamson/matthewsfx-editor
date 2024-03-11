@@ -144,7 +144,7 @@ const GlobalSettings: React.FC<GlobalSettingsProps> = ({ midiAccess, status }) =
             midiAccess?.inputs.forEach((input) => input.onmidimessage = handleMidiMessage);
             output.current = identifyOutput(midiAccess);
             }
-            if(output.current?.send) {
+            if(output.current) {
                 output.current.send(messages.globalSettings.messageData);
             }
         }
@@ -203,10 +203,7 @@ const GlobalSettings: React.FC<GlobalSettingsProps> = ({ midiAccess, status }) =
                     <div>
                         <h3>Display Control</h3>
                         <div>
-                            {/* TODO - Find more eloquent way to appropriately space this label */}
-                            <div>
-                            <label htmlFor={"brightness"}>{`Brightness: ${globalSettingsRes.brightness}`}</label>
-                            </div>
+                        <label htmlFor={"brightness"}>{`Brightness: ${globalSettingsRes.brightness}`}</label>
                         <input id="brightness" type='range' min={0} max={10} value={globalSettingsRes.brightness} onChange={(event) => updateSetting('brightness', event.target.value)} />
                         </div>
                         
