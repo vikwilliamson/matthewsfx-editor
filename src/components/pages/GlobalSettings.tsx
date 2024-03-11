@@ -203,7 +203,10 @@ const GlobalSettings: React.FC<GlobalSettingsProps> = ({ midiAccess, status }) =
                     <div>
                         <h3>Display Control</h3>
                         <div>
-                        <label htmlFor={"brightness"}>{`Brightness: ${globalSettingsRes.brightness}`}</label>
+                            {/* TODO - Find more eloquent way to appropriately space this label */}
+                            <div>
+                            <label htmlFor={"brightness"}>{`Brightness: ${globalSettingsRes.brightness}`}</label>
+                            </div>
                         <input id="brightness" type='range' min={0} max={10} value={globalSettingsRes.brightness} onChange={(event) => updateSetting('brightness', event.target.value)} />
                         </div>
                         
