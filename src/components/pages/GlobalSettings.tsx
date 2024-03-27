@@ -45,12 +45,12 @@ const GlobalSettings: React.FC<GlobalSettingsProps> = ({ midiAccess, status }) =
         switch7Function: 0,
         contrast: 0,
         brightness: 0,
-        controlJackMode: 0,
+        controlJackMode: 1,
         midiClockState: 0,
         midiClockLsb: 0,
         midiClockMsb: 0,
         utilityJackPolarity: 0,
-        utilityJackMode: 0,
+        utilityJackMode: 1,
         midiInputChannel: 0,
     };
 
@@ -76,8 +76,6 @@ const GlobalSettings: React.FC<GlobalSettingsProps> = ({ midiAccess, status }) =
     
         const midiClockLSB = tickDurationInMicroseconds & 0x7F;
         const midiClockMSB = (tickDurationInMicroseconds >> 7) & 0x7F;
-
-        console.log(midiClockLSB, midiClockMSB)
     
         return { LSB: midiClockLSB, MSB: midiClockMSB };
     }
@@ -103,8 +101,13 @@ const GlobalSettings: React.FC<GlobalSettingsProps> = ({ midiAccess, status }) =
         const valueAsNum = typeof newValue === 'string' ? parseInt(newValue) : newValue;
         const newSettings = { ...globalSettingsRes, [setting]: valueAsNum };
 
+        // Invert contrast
+        if(setting === 'contrast') {
+            newSettings.contrast = Math.abs(valueAsNum - 10);
+        }
+
         // Additional logic for Switch Functions
-        // If a Tap function is selected, update appropriate Tap settings as well
+        // If a Tap function is selected, update appropriate Midi Clock Tap settings as well
         if(setting.includes('switch')) {
             // TODO: ADD LOGIC TO DISPLAY TAP FUNCTIONS IN DROPDOWN BASED ON VALUES FOR TAPSTATUS AND TAPSTATUSMODE
             const switchNumber = parseInt(setting.substring(6, 7));
@@ -142,7 +145,6 @@ const GlobalSettings: React.FC<GlobalSettingsProps> = ({ midiAccess, status }) =
             messageToWrite.push(0xf7);
             // Set command byte to "write"
             messageToWrite[6] = 0x22;
-            console.log(messageToWrite);
             output.current?.send(messageToWrite);
         }
     }
@@ -193,7 +195,7 @@ const GlobalSettings: React.FC<GlobalSettingsProps> = ({ midiAccess, status }) =
                 output.current.send(messages.globalSettings.messageData);
             }
         }
-    }, [midiAccess])
+    }, [])
 
     return(
         <>
@@ -258,9 +260,9 @@ const GlobalSettings: React.FC<GlobalSettingsProps> = ({ midiAccess, status }) =
                         <div>
                             {/* TODO - Find more eloquent way to appropriately space this label */}
                             <div>
-                            <label htmlFor={"contrast"}>{`Contrast: ${globalSettingsRes.contrast}`}</label>
+                            <label htmlFor={"contrast"}>{`Contrast: ${10 - globalSettingsRes.contrast}`}</label>
                             </div>
-                        <input id="contrast" type='range' min={0} max={9} value={globalSettingsRes.contrast} onChange={(event) => updateSetting('contrast', event.target.value)} />
+                        <input id="contrast" type='range' min={1} max={10} value={Math.abs(10 - globalSettingsRes.contrast)} onChange={(event) => updateSetting('contrast', event.target.value)} />
                         </div>
                     </div>
                     <div>
@@ -306,13 +308,13 @@ const GlobalSettings: React.FC<GlobalSettingsProps> = ({ midiAccess, status }) =
                     <div>
                         {/* TODO: Refactor binary logic */}
                         <h3>Control Jack In</h3>
-                        <button style={globalSettingsRes.controlJackMode === 0 ? activeButtonStyle : { width: '100%' } }
+                        <button style={globalSettingsRes.controlJackMode === 1 ? activeButtonStyle : { width: '100%' } }
                             onClick={() => updateSetting('controlJackMode', globalSettingsRes.controlJackMode === 0 ? '1' : '0')}
                         >{globalSettingsRes.controlJackMode === 0 ? 'Expression Pedal' : 'Three Button Switch'}</button>
                     </div>
                     <div>
                         <h3>Utility Jack</h3>
-                         <button style={globalSettingsRes.utilityJackPolarity === 0 ? activeButtonStyle : { width: '100%' }}
+                         <button style={globalSettingsRes.utilityJackPolarity === 1 ? activeButtonStyle : { width: '100%' }}
                             onClick={() => updateSetting('utilityJackPolarity', globalSettingsRes.utilityJackPolarity === 0 ? '1' : '0')}
                         >{globalSettingsRes.utilityJackPolarity === 1 ? 'Normally Open (NO)' : 'Normally Closed (NC)'}</button>
                          <button style={globalSettingsRes.utilityJackMode === 0 ? activeButtonStyle : { width: '100%' }}
@@ -327,7 +329,7 @@ const GlobalSettings: React.FC<GlobalSettingsProps> = ({ midiAccess, status }) =
                         <div>
                         <span>
                             <label htmlFor={"sw5"}>{"A"}</label>
-                            <select id="sw5" disabled={globalSettingsRes.controlJackMode === 0} value={globalSettingsRes.switch5Function} onChange={(event) => updateSetting('switch5Function', event.target.value)}>
+                            <select id="sw5" disabled={globalSettingsRes.controlJackMode === 1} value={globalSettingsRes.switch5Function} onChange={(event) => updateSetting('switch5Function', event.target.value)}>
                                 {footswitchFunctions.map((option, i) => <option key={`sw5func${i}`} value={i}>{option}</option>)}
                             </select>
                         </span>
@@ -336,7 +338,7 @@ const GlobalSettings: React.FC<GlobalSettingsProps> = ({ midiAccess, status }) =
                         <div>
                         <span>
                             <label htmlFor={"sw6"}>{"B"}</label>
-                            <select id="sw6" disabled={globalSettingsRes.controlJackMode === 0} value={globalSettingsRes.switch6Function} onChange={(event) => updateSetting('switch6Function', event.target.value)}>
+                            <select id="sw6" disabled={globalSettingsRes.controlJackMode === 1} value={globalSettingsRes.switch6Function} onChange={(event) => updateSetting('switch6Function', event.target.value)}>
                                 {footswitchFunctions.map((option, i) => <option key={`sw6func${i}`} value={i}>{option}</option>)}
                             </select>
                         </span>
@@ -345,7 +347,7 @@ const GlobalSettings: React.FC<GlobalSettingsProps> = ({ midiAccess, status }) =
                         <div>
                         <span>
                             <label htmlFor={"sw7"}>{"C"}</label>
-                            <select id="sw7" disabled={globalSettingsRes.controlJackMode === 0} value={globalSettingsRes.switch7Function} onChange={(event) => updateSetting('switch7Function', event.target.value)}>
+                            <select id="sw7" disabled={globalSettingsRes.controlJackMode === 1} value={globalSettingsRes.switch7Function} onChange={(event) => updateSetting('switch7Function', event.target.value)}>
                                 {footswitchFunctions.map((option, i) => <option key={`sw7func${i}`} value={i}>{option}</option>)}
                             </select>
                         </span>
