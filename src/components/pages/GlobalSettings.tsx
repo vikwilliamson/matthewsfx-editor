@@ -27,7 +27,7 @@ const footswitchFunctions = ['Activate Preset', 'Bank Up', 'Bank Down', 'Preset 
 const midiInputChannelOptions = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11', '12', '13', '14', '15', '16', 'Off'];
 
 const GlobalSettings: React.FC<GlobalSettingsProps> = ({ midiAccess, status }) => {
-    const globalSettingsInitialState = {
+    const globalSettingsInitialState: GlobalSettingsResponse = {
         mfxId1: 0,
         mfxId2: 0,
         mfxId3: 0,
@@ -53,52 +53,98 @@ const GlobalSettings: React.FC<GlobalSettingsProps> = ({ midiAccess, status }) =
         utilityJackMode: 0,
         midiInputChannel: 0,
     };
+
+    const footswitchDropdownValuesInitialState = {
+        switch1Function: footswitchFunctions[0],
+        switch2Function: footswitchFunctions[0],
+        switch3Function: footswitchFunctions[0],
+        switch4Function: footswitchFunctions[0],
+        switch5Function: footswitchFunctions[0],
+        switch6Function: footswitchFunctions[0],
+        switch7Function: footswitchFunctions[0],
+    }
+
     const [globalSettingsRes, setGlobalSettingsRes] = useState<GlobalSettingsResponse>(globalSettingsInitialState);
+    const [bpm, setBpm] = useState<number>(0);
+    const [bpmError, setBpmError] = useState<boolean>(false);
+    const [footswitchDropdownValues, setFootswitchDropdownValues] = useState<object>(footswitchDropdownValuesInitialState)
 
     let output: MidiOutputRef = useRef({} as WebMidi.MIDIOutput);
+
+    const calculateMidiClockValues = (tempo: number) => {
+        const tickDurationInMicroseconds = (60000 / (tempo * 24)) * 1000;
+    
+        const midiClockLSB = tickDurationInMicroseconds & 0x7F;
+        const midiClockMSB = (tickDurationInMicroseconds >> 7) & 0x7F;
+
+        console.log(midiClockLSB, midiClockMSB)
+    
+        return { LSB: midiClockLSB, MSB: midiClockMSB };
+    }
+
+    const validateBpm = (value: string) => {
+        const valueAsNum = parseInt(value);
+        // Validation for Midi Clock BPM
+        if(valueAsNum <= 30) {
+            // TODO - Create detailed error handling around this
+            setBpmError(true);
+        }
+        else if(valueAsNum >= 300) {
+            setBpmError(true);
+            updateSetting('midiClockMsb', 300);
+        }
+        else {
+            setBpmError(false); 
+        }
+    }
+    
 
     const updateSetting = (setting: string, newValue: string | number) => {
         const valueAsNum = typeof newValue === 'string' ? parseInt(newValue) : newValue;
         const newSettings = { ...globalSettingsRes, [setting]: valueAsNum };
 
-        setGlobalSettingsRes(newSettings);
-
-        const messageToWrite = Object.values(newSettings);
-        // TODO - decide if I want to do this or make the Start of Message and EOX part of the shape
-        // First add Start of Message to beginning of array, then add EOX to end of array
-        messageToWrite.unshift(0xf0);
-        messageToWrite.push(0xf7);
-        // Set command byte to "write"
-        messageToWrite[6] = 0x22;
-
-        // Validation for Midi Clock BPM
-        if(setting === 'midiClockMsb') {
-            if(valueAsNum <= 30 || valueAsNum >= 300) {
-                // TODO - Create actual detailed error handling/validation around this
-                return;
-            }
-        }
-
-        // TODO
         // Additional logic for Switch Functions
         // If a Tap function is selected, update appropriate Tap settings as well
         if(setting.includes('switch')) {
-            const switchNumber = setting.substring(6, 7);
+            // TODO: ADD LOGIC TO DISPLAY TAP FUNCTIONS IN DROPDOWN BASED ON VALUES FOR TAPSTATUS AND TAPSTATUSMODE
+            const switchNumber = parseInt(setting.substring(6, 7));
 
             if(valueAsNum === 5) {
-                updateSetting('tapStatus', switchNumber);
-                updateSetting('tapStatusMode', 1);
+                setFootswitchDropdownValues({...footswitchDropdownValues, [setting]: footswitchFunctions[5]});
+                newSettings.tapStatus = switchNumber - 1;
+                newSettings.tapStatusMode = 1;
             }
             else if(valueAsNum === 6) {
-                updateSetting('tapStatus', switchNumber);
-                updateSetting('tapStatusMode', 0);
+                setFootswitchDropdownValues({...footswitchDropdownValues, [setting]: footswitchFunctions[6]});
+                newSettings.tapStatus = switchNumber - 1;
+                newSettings.tapStatusMode = 0;
             }
             else {
-                updateSetting('tapStatus', '127');
+                setFootswitchDropdownValues({...footswitchDropdownValues, [setting]: footswitchFunctions[valueAsNum]});
+                newSettings[setting] = valueAsNum;
+                if(newSettings.tapStatus !== 127) newSettings.tapStatus = 127;
             }
         }
 
-        output.current?.send(messageToWrite);
+        if(setting.includes('sb')) {
+            newSettings.midiClockLsb = calculateMidiClockValues(valueAsNum).LSB;
+            newSettings.midiClockMsb = calculateMidiClockValues(valueAsNum).MSB;
+        }
+
+        setGlobalSettingsRes(newSettings);
+
+        // Only send the MIDI write message if validation is satisfied
+        if(((setting !== 'midiClockMsb') || (setting === 'midiClockMsb' && !bpmError))) { 
+            const messageToWrite = Object.values(newSettings);
+            // TODO - decide if I want to do this or make the Start of Message and EOX part of the shape
+            // First add Start of Message to beginning of array, then add EOX to end of array
+            messageToWrite.unshift(0xf0);
+            messageToWrite.push(0xf7);
+            // Set command byte to "write"
+            messageToWrite[6] = 0x22;
+            console.log(messageToWrite);
+            output.current?.send(messageToWrite);
+        }
     }
 
     useEffect(() => {
@@ -147,7 +193,7 @@ const GlobalSettings: React.FC<GlobalSettingsProps> = ({ midiAccess, status }) =
                 output.current.send(messages.globalSettings.messageData);
             }
         }
-    }, [])
+    }, [midiAccess])
 
     return(
         <>
@@ -206,7 +252,7 @@ const GlobalSettings: React.FC<GlobalSettingsProps> = ({ midiAccess, status }) =
                             <div>
                             <label htmlFor={"brightness"}>{`Brightness: ${globalSettingsRes.brightness}`}</label>
                             </div>
-                        <input id="brightness" type='range' min={0} max={10} value={globalSettingsRes.brightness} onChange={(event) => updateSetting('brightness', event.target.value)} />
+                        <input id="brightness" type='range' min={1} max={10} value={globalSettingsRes.brightness} onChange={(event) => updateSetting('brightness', event.target.value)} />
                         </div>
                         
                         <div>
@@ -214,7 +260,7 @@ const GlobalSettings: React.FC<GlobalSettingsProps> = ({ midiAccess, status }) =
                             <div>
                             <label htmlFor={"contrast"}>{`Contrast: ${globalSettingsRes.contrast}`}</label>
                             </div>
-                        <input id="contrast" type='range' min={0} max={10} value={globalSettingsRes.contrast} onChange={(event) => updateSetting('contrast', event.target.value)} />
+                        <input id="contrast" type='range' min={0} max={9} value={globalSettingsRes.contrast} onChange={(event) => updateSetting('contrast', event.target.value)} />
                         </div>
                     </div>
                     <div>
@@ -223,7 +269,7 @@ const GlobalSettings: React.FC<GlobalSettingsProps> = ({ midiAccess, status }) =
                         <input
                             id="midiClockState"
                             type="checkbox"
-                            checked={globalSettingsRes.midiClockState === 0 ? false : true}
+                            checked={globalSettingsRes.midiClockState === 1}
                             onChange={(event) => updateSetting('midiClockState', event.target.checked ? '1' : '0')}
                         />
                         </div>
@@ -232,14 +278,18 @@ const GlobalSettings: React.FC<GlobalSettingsProps> = ({ midiAccess, status }) =
                         <input
                             id="midiClockMsb"
                             disabled={globalSettingsRes.midiClockState === 0}
-                            type="text"
-                            value={globalSettingsRes.midiClockMsb}
-                            onChange={(event) => updateSetting('midiClockMsb', event.target.value)}
+                            type="number"
+                            value={`${bpm > 0 ? bpm : ''}`}
+                            onChange={(event) => {
+                                setBpm(parseInt(event.target.value));
+                                validateBpm(event.target.value);
+                                updateSetting('midiClockMsb', event.target.value);
+                            }}
                             placeholder='30 - 300'
-                            min={30}
                             max={300}
                             style={{ backgroundColor: 'white', color: 'black' }}
                         />
+                        {bpmError && <div style={{color: 'red'}}>{"Value must be between 30 and 300"}</div>}
                         </div>
                     </div>
                     </Grid>
