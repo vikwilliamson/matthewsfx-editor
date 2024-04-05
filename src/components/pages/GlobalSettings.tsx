@@ -71,21 +71,30 @@ const GlobalSettings: React.FC<GlobalSettingsProps> = ({ midiAccess, status }) =
 
     let output: MidiOutputRef = useRef({} as WebMidi.MIDIOutput);
 
+    const debounce = (func: Function, delay: number) => {
+        let timeoutId: NodeJS.Timeout;
+        return (...args: any[]) => {
+          clearTimeout(timeoutId);
+          timeoutId = setTimeout(() => {
+            func(...args);
+          }, delay);
+        };
+      };
+
     const calculateMidiClockValues = (tempo: number) => {
-        const tickDurationInMicroseconds = (60000 / (tempo * 24)) * 1000;
-    
-        const midiClockLSB = tickDurationInMicroseconds & 0x7F;
-        const midiClockMSB = (tickDurationInMicroseconds >> 7) & 0x7F;
-    
+        const midiClockMSB = Math.floor(tempo / 128);
+        const midiClockLSB = tempo % 128;
+
         return { LSB: midiClockLSB, MSB: midiClockMSB };
-    }
+    };
 
     const validateBpm = (value: string) => {
         const valueAsNum = parseInt(value);
         // Validation for Midi Clock BPM
-        if(valueAsNum <= 30) {
+        if(valueAsNum < 30 && valueAsNum !== 0) {
             // TODO - Create detailed error handling around this
             setBpmError(true);
+            updateSetting('midiClockMsb', 30);
         }
         else if(valueAsNum >= 300) {
             setBpmError(true);
@@ -95,8 +104,18 @@ const GlobalSettings: React.FC<GlobalSettingsProps> = ({ midiAccess, status }) =
             setBpmError(false); 
         }
     }
-    
 
+    const handleBpmInput = debounce((value: string) => {
+        validateBpm(value);
+        updateSetting('midiClockMsb', value);
+      }, 1000);
+
+    const handleBpmChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+        const { value } = event.target;
+        setBpm(parseInt(value));
+        handleBpmInput(value);
+    }
+    
     const updateSetting = (setting: string, newValue: string | number) => {
         const valueAsNum = typeof newValue === 'string' ? parseInt(newValue) : newValue;
         const newSettings = { ...globalSettingsRes, [setting]: valueAsNum };
@@ -109,7 +128,6 @@ const GlobalSettings: React.FC<GlobalSettingsProps> = ({ midiAccess, status }) =
         // Additional logic for Switch Functions
         // If a Tap function is selected, update appropriate Midi Clock Tap settings as well
         if(setting.includes('switch')) {
-            // TODO: ADD LOGIC TO DISPLAY TAP FUNCTIONS IN DROPDOWN BASED ON VALUES FOR TAPSTATUS AND TAPSTATUSMODE
             const switchNumber = parseInt(setting.substring(6, 7));
 
             if(valueAsNum === 5) {
@@ -129,7 +147,7 @@ const GlobalSettings: React.FC<GlobalSettingsProps> = ({ midiAccess, status }) =
             }
         }
 
-        if(setting.includes('sb')) {
+        if(setting.includes('sb') && !bpmError) {
             newSettings.midiClockLsb = calculateMidiClockValues(valueAsNum).LSB;
             newSettings.midiClockMsb = calculateMidiClockValues(valueAsNum).MSB;
         }
@@ -282,11 +300,7 @@ const GlobalSettings: React.FC<GlobalSettingsProps> = ({ midiAccess, status }) =
                             disabled={globalSettingsRes.midiClockState === 0}
                             type="number"
                             value={`${bpm > 0 ? bpm : ''}`}
-                            onChange={(event) => {
-                                setBpm(parseInt(event.target.value));
-                                validateBpm(event.target.value);
-                                updateSetting('midiClockMsb', event.target.value);
-                            }}
+                            onChange={handleBpmChange}
                             placeholder='30 - 300'
                             max={300}
                             style={{ backgroundColor: 'white', color: 'black' }}
