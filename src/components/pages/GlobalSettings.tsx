@@ -1,7 +1,12 @@
 // GLOBALS
 import React, { useEffect, useRef, useState } from 'react';
+import * as unzipper from 'unzipper';
 // COMPONENTS
+import Box from '@mui/material/Box';
+import Divider from '@mui/material/Divider';
 import Grid from '@mui/material/Grid';
+import LinearProgress from '@mui/material/LinearProgress';
+import Modal from '@mui/material/Modal';
 // DATA/UTILS
 import { checkIfSysex } from '../../utilities/checkIfSysex';
 import { GlobalSettingsResponse } from '../../types';
@@ -22,6 +27,19 @@ const activeButtonStyle = {
     color: 'white',
     width: '100%'
 }
+
+const modalStyle = {
+    position: 'absolute' as 'absolute',
+    top: '50%',
+    left: '50%',
+    transform: 'translate(-50%, -50%)',
+    width: 400,
+    bgcolor: 'background.paper',
+    border: '2px solid #000',
+    boxShadow: 24,
+    p: 4,
+  };
+
 // TODO - make this an iterable type/enum and import it and use it that way instead
 const footswitchFunctions = ['Activate Preset', 'Bank Up', 'Bank Down', 'Preset Up', 'Preset Down', 'Tap: Midi Clock', 'Tap: Utility + Midi Clock'];
 const midiInputChannelOptions = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11', '12', '13', '14', '15', '16', 'Off'];
@@ -67,7 +85,12 @@ const GlobalSettings: React.FC<GlobalSettingsProps> = ({ midiAccess, status }) =
     const [globalSettingsRes, setGlobalSettingsRes] = useState<GlobalSettingsResponse>(globalSettingsInitialState);
     const [bpm, setBpm] = useState<number>(0);
     const [bpmError, setBpmError] = useState<boolean>(false);
-    const [footswitchDropdownValues, setFootswitchDropdownValues] = useState<object>(footswitchDropdownValuesInitialState)
+    const [footswitchDropdownValues, setFootswitchDropdownValues] = useState<object>(footswitchDropdownValuesInitialState);
+    const [firmwareModalOpen, setFirmwareModalOpen] = useState<boolean>(false);
+    const [installedFirmwareVersion, setInstalledFirmwareVersion] = useState<string>('');
+    const [fileFirmwareVersion, setFileFirmwareVersion] = useState<string>('Not Selected');
+    const [isFirmwareLoaded, setIsFirmwareLoaded] = useState<boolean>(false);
+    const [downloadProgress, setDownloadProgress] = useState<number>(0);
 
     let output: MidiOutputRef = useRef({} as WebMidi.MIDIOutput);
 
@@ -115,6 +138,99 @@ const GlobalSettings: React.FC<GlobalSettingsProps> = ({ midiAccess, status }) =
         setBpm(parseInt(value));
         handleBpmInput(value);
     }
+
+    const handleUpdateFirmwareVersion = () => {
+        setFirmwareModalOpen(true);
+        if(output.current?.send) {
+            console.log('Massagez: ', messages.firmwareUpdateVersionRequest.messageData);
+            output.current.send(messages.firmwareUpdateVersionRequest.messageData);
+        }
+    }
+
+    const handleUpdateFromFile = () => {
+        alert('Update from File!!!');
+    }
+
+    const handleUpdateFromWeb = async () => {
+        // Method 2 - With Unzip
+        // try {
+        //     const response = await fetch('s3://matthewseffects-futuristfirmware/Futurist-V03-03.zip');
+        //     const reader = response.body?.getReader();
+      
+        //     if (!reader) {
+        //       throw new Error('Failed to get reader from response body');
+        //     }
+      
+        //     const totalLength = Number(response.headers.get('Content-Length'));
+        //     let downloadedLength = 0;
+      
+        //     const unzipStream = unzipper.Parse();
+      
+        //     unzipStream.on('entry', (entry) => {
+        //       // Handle each entry in the zip file
+        //       // Here you can extract files or do whatever you need with them
+        //       // For example, you can extract text files and set the content in state
+        //       entry.on('data', (data: Buffer) => {
+        //         // Handle entry data
+        //       });
+      
+        //       entry.on('end', () => {
+        //         // Entry processing complete
+        //       });
+      
+        //       entry.autodrain();
+        //     });
+      
+        //     const stream = response.body?.pipe(unzipStream);
+      
+        //     if (!stream) {
+        //       throw new Error('Failed to create unzip stream');
+        //     }
+      
+        //     stream.on('data', (chunk) => {
+        //       // Update download progress
+        //       downloadedLength += chunk.length;
+        //       const progress = (downloadedLength / totalLength) * 100;
+        //       setDownloadProgress(progress);
+        //     });
+      
+        //     stream.on('end', () => {
+        //       // All data has been read
+        //       console.log('Unzipping complete');
+        //     });
+        //   } catch (error) {
+        //     console.error('Error downloading or unzipping file:', error);
+        //   }
+
+        // Method 1 - No Unzip
+        // const xhr = new XMLHttpRequest();
+        // // Hard-coded for now, will write dynamic utility
+        // const url = 's3://matthewseffects-futuristfirmware/Futurist-V03-03.zip';
+    
+        // xhr.open('GET', url, true);
+        // xhr.responseType = 'blob';
+    
+        // xhr.onprogress = (event) => {
+        //   if (event.lengthComputable) {
+        //     const progress = (event.loaded / event.total) * 100;
+        //     setDownloadProgress(progress);
+        //   }
+        // };
+    
+        // xhr.onload = () => {
+        //   if (xhr.status === 200) {
+        //     // File downloaded successfully
+        //     const blob = xhr.response;
+        //     // Do something with the downloaded file
+        //   }
+        // };
+    
+        // xhr.onerror = () => {
+        //   console.error('Error downloading file');
+        // };
+    
+        // xhr.send();
+      };
     
     const updateSetting = (setting: string, newValue: string | number) => {
         const valueAsNum = typeof newValue === 'string' ? parseInt(newValue) : newValue;
@@ -210,7 +326,7 @@ const GlobalSettings: React.FC<GlobalSettingsProps> = ({ midiAccess, status }) =
             output.current = identifyOutput(midiAccess);
             }
             if(output.current?.send) {
-                output.current.send(messages.globalSettings.messageData);
+                output.current.send(messages.globalSettingsRequest.messageData);
             }
         }
     }, [])
@@ -368,9 +484,31 @@ const GlobalSettings: React.FC<GlobalSettingsProps> = ({ midiAccess, status }) =
                         </div>
                     </div>
                     <div style={{ paddingTop: '1rem' }}>
-                        <button onClick={() => alert('Mock Updating Firmware...')} style={{ width: '100%' }}>Update Firmware</button>
+                        <button onClick={handleUpdateFirmwareVersion} style={{ width: '100%' }}>Update Firmware</button>
                     </div>
                     </Grid>
+                    <Modal open={firmwareModalOpen}>
+                        <Box sx={modalStyle}>
+                        <h2>
+                            Update Firmware
+                        </h2>
+                        <Divider />
+                        <div style={{ paddingTop: '1rem' }}>
+                            <button onClick={handleUpdateFromFile} style={{ width: '50%' }}>Update from File</button>
+                            <button onClick={handleUpdateFromWeb} style={{ width: '50%' }}>Update from Web</button>
+                        </div>
+                        <div id="modal-modal-description">
+                            <p>{`Installed Firmware: ${installedFirmwareVersion}`}</p>
+                            <p>{`File Firmware: ${fileFirmwareVersion}`}</p>
+                        </div>
+                        <Box>Markdown</Box>
+                        <LinearProgress variant='determinate' value={downloadProgress} />
+                        <div style={{ paddingTop: '1rem' }}>
+                            <button onClick={() => setFirmwareModalOpen(false)} style={{ width: '50%' }}>Cancel</button>
+                            <button disabled={!isFirmwareLoaded} onClick={handleUpdateFromWeb} style={{ width: '50%' }}>Update</button>
+                        </div>
+                        </Box>
+                    </Modal>
                 </Grid>
             </div>
             </div>

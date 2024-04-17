@@ -5,11 +5,11 @@ import AppContent from './AppContent';
 import AppHeader from '../chrome/AppHeader';
 import LeftSideBar from '../chrome/LeftSideBar';
 
+import Box from '@mui/material/Box';
 import Grid from '@mui/material/Grid';
 import Modal from '@mui/material/Modal';
 // STYLES
 import '../../styles/App.css';
-import Box from '@mui/material/Box';
 // ASSETS/DATA
 import { Bank, EditorTab } from '../../types';
 
