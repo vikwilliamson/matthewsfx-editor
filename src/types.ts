@@ -10,6 +10,20 @@ export enum EditorTab {
     Settings = 'Global Settings'
 };
 
+export type FirmwareVersionResponse = {
+    [key: string]: number | string;
+    mfxId1: number;
+    mfxId2: number;
+    mfxId3: number;
+    productIdMsb: number;
+    productIdLsb: number;
+    commandByte: number;
+    majorVersion10: number;
+    majorVersion1: number;
+    minorVersion10: number;
+    minorVersion1: number;
+}
+
 export type GlobalSettingsResponse = {
     [key: string]: number;
     mfxId1: number;

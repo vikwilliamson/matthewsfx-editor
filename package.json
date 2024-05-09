@@ -21,6 +21,7 @@
     "react-dom": "^18.2.0",
     "react-scripts": "5.0.1",
     "typescript": "^4.9.5",
+    "unzipper": "^0.11.3",
     "web-vitals": "^2.1.4"
   },
   "scripts": {
@@ -51,6 +52,7 @@
   },
   "devDependencies": {
     "@types/lodash": "^4.14.202",
+    "@types/unzipper": "^0.10.9",
     "@types/webmidi": "^2.0.10"
   }
 }

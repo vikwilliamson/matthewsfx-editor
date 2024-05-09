@@ -9,7 +9,7 @@ import LinearProgress from '@mui/material/LinearProgress';
 import Modal from '@mui/material/Modal';
 // DATA/UTILS
 import { checkIfSysex } from '../../utilities/checkIfSysex';
-import { GlobalSettingsResponse } from '../../types';
+import { FirmwareVersionResponse, GlobalSettingsResponse } from '../../types';
 import { identifyOutput } from '../../utilities/identifyOutput';
 import { messages } from '../../assets/dictionary';
 
@@ -111,6 +111,25 @@ const GlobalSettings: React.FC<GlobalSettingsProps> = ({ midiAccess, status }) =
         return { LSB: midiClockLSB, MSB: midiClockMSB };
     };
 
+    const convertHexToAscii = (value: number) => {
+        console.log('Hex value: ', value);
+        try {
+          
+          // Check if the value is within the valid ASCII range (32 to 126)
+          if (value < 32 || value > 126) {
+            throw new Error('Invalid ASCII value');
+          }
+          
+          // Convert integer to ASCII character
+          const asciiChar = String.fromCharCode(value);
+          
+          // Update state with the ASCII character
+          return asciiChar;
+        } catch (error) {
+          console.error('Error converting hexadecimal to ASCII:', error);
+        }
+      };
+
     const validateBpm = (value: string) => {
         const valueAsNum = parseInt(value);
         // Validation for Midi Clock BPM
@@ -140,11 +159,7 @@ const GlobalSettings: React.FC<GlobalSettingsProps> = ({ midiAccess, status }) =
     }
 
     const handleUpdateFirmwareVersion = () => {
-        setFirmwareModalOpen(true);
-        if(output.current?.send) {
-            console.log('Massagez: ', messages.firmwareUpdateVersionRequest.messageData);
-            output.current.send(messages.firmwareUpdateVersionRequest.messageData);
-        }
+        setFirmwareModalOpen(true); 
     }
 
     const handleUpdateFromFile = () => {
@@ -284,38 +299,39 @@ const GlobalSettings: React.FC<GlobalSettingsProps> = ({ midiAccess, status }) =
     }
 
     useEffect(() => {
+        // Retrieve Global Settings on page load
         const handleMidiMessage = (event: WebMidi.MIDIMessageEvent) => {
             if (checkIfSysex(event.data)) {
             // Parse response into the appropriate object
-            const parsedResponse: GlobalSettingsResponse = {
-                mfxId1: event.data[1],
-                mfxId2: event.data[2],
-                mfxId3: event.data[3],
-                productIdLsb: event.data[4],
-                productIdMsb: event.data[5],
-                commandByte: event.data[6],
-                tapStatus: event.data[7],
-                tapStatusMode: event.data[8],
-                switch1Function: event.data[9],
-                switch2Function: event.data[10],
-                switch3Function: event.data[11],
-                switch4Function: event.data[12],
-                switch5Function: event.data[13],
-                switch6Function: event.data[14],
-                switch7Function: event.data[15],
-                contrast: event.data[16],
-                brightness: event.data[17],
-                controlJackMode: event.data[18],
-                midiClockState: event.data[19],
-                midiClockLsb: event.data[20],
-                midiClockMsb: event.data[21],
-                utilityJackPolarity: event.data[22],
-                utilityJackMode: event.data[23],
-                midiInputChannel: event.data[24],
-            };
-    
-            // Update state with parsed response object
-            setGlobalSettingsRes(parsedResponse);
+                const parsedResponse: GlobalSettingsResponse = {
+                    mfxId1: event.data[1],
+                    mfxId2: event.data[2],
+                    mfxId3: event.data[3],
+                    productIdLsb: event.data[4],
+                    productIdMsb: event.data[5],
+                    commandByte: event.data[6],
+                    tapStatus: event.data[7],
+                    tapStatusMode: event.data[8],
+                    switch1Function: event.data[9],
+                    switch2Function: event.data[10],
+                    switch3Function: event.data[11],
+                    switch4Function: event.data[12],
+                    switch5Function: event.data[13],
+                    switch6Function: event.data[14],
+                    switch7Function: event.data[15],
+                    contrast: event.data[16],
+                    brightness: event.data[17],
+                    controlJackMode: event.data[18],
+                    midiClockState: event.data[19],
+                    midiClockLsb: event.data[20],
+                    midiClockMsb: event.data[21],
+                    utilityJackPolarity: event.data[22],
+                    utilityJackMode: event.data[23],
+                    midiInputChannel: event.data[24],
+                };
+        
+                // Update state with parsed response object
+                setGlobalSettingsRes(parsedResponse);
         }
 
           };
@@ -329,6 +345,44 @@ const GlobalSettings: React.FC<GlobalSettingsProps> = ({ midiAccess, status }) =
                 output.current.send(messages.globalSettingsRequest.messageData);
             }
         }
+    }, [])
+
+    useEffect(() => {
+        // Retrieve current firmware information on page load
+        const handleMidiMessage = (event: WebMidi.MIDIMessageEvent) => {
+            if (checkIfSysex(event.data)) {
+            // Parse response into the appropriate object
+                const parsedResponse: FirmwareVersionResponse = {
+                    mfxId1: event.data[1],
+                    mfxId2: event.data[2],
+                    mfxId3: event.data[3],
+                    productIdMsb: event.data[4],
+                    productIdLsb: event.data[5],
+                    commandByte: event.data[6],
+                    majorVersion10: event.data[7],
+                    majorVersion1: event.data[8],
+                    minorVersion10: event.data[9],
+                    minorVersion1: event.data[10]
+                }
+
+                console.log('ParsedRez: ', parsedResponse);
+                const { majorVersion1, majorVersion10, minorVersion1, minorVersion10 } = parsedResponse;
+                const version = `${majorVersion10 === 20 ? '': majorVersion10}${majorVersion1}.${minorVersion10}${minorVersion1 === 20 ? '': minorVersion1}`;
+                console.log('Installed Ver: ', version)
+                setInstalledFirmwareVersion(version)
+            }
+    }
+
+    if(midiAccess) {
+        if(midiAccess.inputs.size > 0 && midiAccess.outputs.size > 0) {
+        midiAccess?.inputs.forEach((input) => input.onmidimessage = handleMidiMessage);
+        output.current = identifyOutput(midiAccess);
+        }
+        if(output.current?.send) {
+            console.log('Message: ', messages.firmwareUpdateVersionRequest.messageData);
+            output.current.send(messages.firmwareUpdateVersionRequest.messageData);
+        }
+    }  
     }, [])
 
     return(
