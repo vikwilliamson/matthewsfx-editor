@@ -59,7 +59,6 @@ const AppHeader: React.FC<AppHeaderProps> = ({ currentTab, device, setDevice, ha
                             onChange={setDevice}
                             style={{ backgroundColor: 'gray', color: 'white', opacity: '50%', minWidth: '10rem', marginLeft: '10px' }}
                         >
-                            <MenuItem key="defaultDeviceSelection" value="">{'Select Device'}</MenuItem>
                             {midiDevices.map((device) => (
                                 <MenuItem key={device.id} value={device.id}>
                                     {device.name}

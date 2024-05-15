@@ -46,9 +46,14 @@ const App: React.FC = () => {
     const defaultDevice = midiDevices.find((device) => device.name === "The Futurist");
     if(defaultDevice) {
       setSelectedDevice(defaultDevice);
+      setDeviceStatus('connected');
+    }
+    else if(foundDevices[0]) {
+      setSelectedDevice(foundDevices[0]);
+      setDeviceStatus('connected');
     }
     else {
-      setSelectedDevice(foundDevices[0]);
+      setDeviceStatus('disconnected');
     }
   };
 
