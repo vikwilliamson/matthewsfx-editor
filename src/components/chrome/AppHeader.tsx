@@ -65,7 +65,6 @@ const AppHeader: React.FC<AppHeaderProps> = ({ currentTab, device, setDevice, ha
                                 </MenuItem>
                             ))}
                         </Select>
-                    </FormControl>
                 </Box>
                     
                     <div className='logo-container'>
