@@ -167,6 +167,8 @@ const GlobalSettings: React.FC<GlobalSettingsProps> = ({ midiAccess, status }) =
     }
 
     const handleUpdateFromWeb = async () => {
+        alert('Update from Web!!!');
+
         // Method 2 - With Unzip
         // try {
         //     const response = await fetch('s3://matthewseffects-futuristfirmware/Futurist-V03-03.zip');
