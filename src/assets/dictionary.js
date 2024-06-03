@@ -1,3 +1,8 @@
+export const commandBytes = {
+  globalSettingsResponse: 0x21,
+  firmwareVersionResponse: 0x2A
+};
+
 export const messages = {
   globalSettingsRequest: {
     messageData: [0xf0, 0x00, 0x02, 0x30, 0x00, 0x00, 0x20, 0x00, 0x00, 0xf7],

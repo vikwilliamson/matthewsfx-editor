@@ -159,6 +159,12 @@ const GlobalSettings: React.FC<GlobalSettingsProps> = ({ midiAccess, status }) =
     }
 
     const handleUpdateFirmwareVersion = () => {
+        // Request firmware version
+        if(output.current?.send) {
+            console.log('Message: ', messages.firmwareUpdateVersionRequest.messageData);
+            output.current.send(messages.firmwareUpdateVersionRequest.messageData);
+        }
+
         setFirmwareModalOpen(true); 
     }
 
@@ -349,43 +355,43 @@ const GlobalSettings: React.FC<GlobalSettingsProps> = ({ midiAccess, status }) =
         }
     }, [])
 
-    useEffect(() => {
-        // Retrieve current firmware information on page load
-        const handleMidiMessage = (event: WebMidi.MIDIMessageEvent) => {
-            if (checkIfSysex(event.data)) {
-            // Parse response into the appropriate object
-                const parsedResponse: FirmwareVersionResponse = {
-                    mfxId1: event.data[1],
-                    mfxId2: event.data[2],
-                    mfxId3: event.data[3],
-                    productIdMsb: event.data[4],
-                    productIdLsb: event.data[5],
-                    commandByte: event.data[6],
-                    majorVersion10: event.data[7],
-                    majorVersion1: event.data[8],
-                    minorVersion10: event.data[9],
-                    minorVersion1: event.data[10]
-                }
+    // useEffect(() => {
+    //     // Retrieve current firmware information on modal open
+    //     const handleMidiMessage = (event: WebMidi.MIDIMessageEvent) => {
+    //         if (checkIfSysex(event.data)) {
+    //         // Parse response into the appropriate object
+    //             const parsedResponse: FirmwareVersionResponse = {
+    //                 mfxId1: event.data[1],
+    //                 mfxId2: event.data[2],
+    //                 mfxId3: event.data[3],
+    //                 productIdMsb: event.data[4],
+    //                 productIdLsb: event.data[5],
+    //                 commandByte: event.data[6],
+    //                 majorVersion10: event.data[7],
+    //                 majorVersion1: event.data[8],
+    //                 minorVersion10: event.data[9],
+    //                 minorVersion1: event.data[10]
+    //             }
 
-                console.log('ParsedRez: ', parsedResponse);
-                const { majorVersion1, majorVersion10, minorVersion1, minorVersion10 } = parsedResponse;
-                const version = `${majorVersion10 === 20 ? '': majorVersion10}${majorVersion1}.${minorVersion10}${minorVersion1 === 20 ? '': minorVersion1}`;
-                console.log('Installed Ver: ', version)
-                setInstalledFirmwareVersion(version)
-            }
-    }
-
-    if(midiAccess) {
-        if(midiAccess.inputs.size > 0 && midiAccess.outputs.size > 0) {
-        midiAccess?.inputs.forEach((input) => input.onmidimessage = handleMidiMessage);
-        output.current = identifyOutput(midiAccess);
-        }
-        if(output.current?.send) {
-            console.log('Message: ', messages.firmwareUpdateVersionRequest.messageData);
-            output.current.send(messages.firmwareUpdateVersionRequest.messageData);
-        }
-    }  
-    }, [])
+    //             console.log('ParsedRez: ', parsedResponse);
+    //             const { majorVersion1, majorVersion10, minorVersion1, minorVersion10 } = parsedResponse;
+    //             const version = `${majorVersion10 === 20 ? '': majorVersion10}${majorVersion1}.${minorVersion10}${minorVersion1 === 20 ? '': minorVersion1}`;
+    //             console.log('Installed Ver: ', version)
+    //             setInstalledFirmwareVersion(version)
+    //         }
+    // }
+    //
+    // if(midiAccess) {
+    //     if(midiAccess.inputs.size > 0 && midiAccess.outputs.size > 0) {
+    //     midiAccess?.inputs.forEach((input) => input.onmidimessage = handleMidiMessage);
+    //     output.current = identifyOutput(midiAccess);
+    //     }
+    //     if(output.current?.send) {
+    //         console.log('Message: ', messages.firmwareUpdateVersionRequest.messageData);
+    //         output.current.send(messages.firmwareUpdateVersionRequest.messageData);
+    //     }
+    // }  
+    // }, [firmwareModalOpen])
 
     return(
         <>
