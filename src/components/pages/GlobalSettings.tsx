@@ -12,6 +12,14 @@ import { checkIfSysex } from '../../utilities/checkIfSysex';
 import { FirmwareVersionResponse, GlobalSettingsResponse } from '../../types';
 import { identifyOutput } from '../../utilities/identifyOutput';
 import { messages } from '../../assets/dictionary';
+import FormControl from '@mui/material/FormControl';
+import Select from '@mui/material/Select';
+import MenuItem from '@mui/material/MenuItem';
+import InputLabel from '@mui/material/InputLabel';
+import Checkbox from '@mui/material/Checkbox';
+import Button from '@mui/material/Button';
+import TextField from '@mui/material/TextField';
+import Slider from '@mui/material/Slider';
 
 type GlobalSettingsProps = {
     midiAccess: WebMidi.MIDIAccess | null;
@@ -406,37 +414,73 @@ const GlobalSettings: React.FC<GlobalSettingsProps> = ({ midiAccess, status }) =
                         <h3>Foot Switch Settings</h3>
                         <div>
                         <span style={{ width: '100%' }}>
-                            <label htmlFor={"sw1"}>{"1"}</label>
-                            <select id="sw1" value={globalSettingsRes.switch1Function} onChange={(event) => updateSetting('switch1Function', event.target.value)}>
-                                {footswitchFunctions.map((option, i) => <option key={`sw1func${i}`} value={i}>{option}</option>)}
-                            </select>
+                            {/* <label htmlFor={"sw1"}>{"1"}</label> */}
+                            <FormControl>
+                                {/* <InputLabel id="sw1-label" style={{ color: 'white' }}>Function 1</InputLabel> */}
+                                <Select
+                                    autoWidth
+                                    id="sw1"
+                                    value={globalSettingsRes.switch1Function}
+                                    onChange={(event) => updateSetting('switch1Function', event.target.value)}
+                                    style={{ backgroundColor: 'gray', color: 'white', height: '2rem', width: '10rem', marginBottom: '10px', marginLeft: '10px' }}
+                                    >
+                                    {footswitchFunctions.map((option, i) => <MenuItem key={`sw1func${i}`} value={i}>{option}</MenuItem>)}
+                                </Select>
+                            </FormControl>
                         </span>
                         </div>
                         
                         <div>
                         <span>
-                            <label htmlFor={"sw2"}>{"2"}</label>
-                            <select id="sw2" value={globalSettingsRes.switch2Function} onChange={(event) => updateSetting('switch2Function', event.target.value)}>
-                                {footswitchFunctions.map((option, i) => <option key={`sw2func${i}`} value={i}>{option}</option>)}
-                            </select>
+                            {/* <label htmlFor={"sw2"}>{"2"}</label> */}
+                            <FormControl>
+                                {/* <InputLabel id="sw2-label" style={{ color: 'white' }}>Function 2</InputLabel> */}
+                                <Select
+                                    autoWidth
+                                    id="sw2"
+                                    value={globalSettingsRes.switch2Function}
+                                    onChange={(event) => updateSetting('switch2Function', event.target.value)}
+                                    style={{ backgroundColor: 'gray', color: 'white', height: '2rem', width: '10rem', marginBottom: '10px', marginLeft: '10px' }}
+                                    >
+                                    {footswitchFunctions.map((option, i) => <MenuItem key={`sw2func${i}`} value={i}>{option}</MenuItem>)}
+                                </Select>
+                            </FormControl>
                         </span>
                         </div>
                         
                         <div>
                         <span>
-                            <label htmlFor={"sw3"}>{"3"}</label>
-                            <select id="sw3" value={globalSettingsRes.switch3Function} onChange={(event) => updateSetting('switch3Function', event.target.value)}>
-                                {footswitchFunctions.map((option, i) => <option key={`sw3func${i}`} value={i}>{option}</option>)}
-                            </select>
+                            {/* <label htmlFor={"sw3"}>{"3"}</label> */}
+                            <FormControl>
+                                {/* <InputLabel id="sw3-label" style={{ color: 'white' }}>Function 3</InputLabel> */}
+                                <Select
+                                    autoWidth
+                                    id="sw3"
+                                    value={globalSettingsRes.switch3Function}
+                                    onChange={(event) => updateSetting('switch3Function', event.target.value)}
+                                    style={{ backgroundColor: 'gray', color: 'white', height: '2rem', width: '10rem', marginBottom: '10px', marginLeft: '10px' }}
+                                    >
+                                    {footswitchFunctions.map((option, i) => <MenuItem key={`sw3func${i}`} value={i}>{option}</MenuItem>)}
+                                </Select>
+                            </FormControl>
                         </span>
                         </div>
                         
                         <div>
                         <span>
-                            <label htmlFor={"sw4"}>{"4"}</label>
-                            <select id="sw4" value={globalSettingsRes.switch4Function} onChange={(event) => updateSetting('switch4Function', event.target.value)}>
-                                {footswitchFunctions.map((option, i) => <option key={`sw4func${i}`} value={i}>{option}</option>)}
-                            </select>
+                            {/* <label htmlFor={"sw4"}>{"4"}</label> */}
+                            <FormControl>
+                                {/* <InputLabel id="sw4-label" style={{ color: 'white' }}>Function 4</InputLabel> */}
+                                <Select
+                                    autoWidth
+                                    id="sw4"
+                                    value={globalSettingsRes.switch4Function}
+                                    onChange={(event) => updateSetting('switch4Function', event.target.value)}
+                                    style={{ backgroundColor: 'gray', color: 'white', height: '2rem', width: '10rem', marginBottom: '10px', marginLeft: '10px' }}
+                                    >
+                                    {footswitchFunctions.map((option, i) => <MenuItem key={`sw4func${i}`} value={i}>{option}</MenuItem>)}
+                                </Select>
+                            </FormControl>
                         </span>
                         </div>
                     </div>
@@ -446,44 +490,47 @@ const GlobalSettings: React.FC<GlobalSettingsProps> = ({ midiAccess, status }) =
                     <div>
                         <h3>Display Control</h3>
                         <div>
-                            {/* TODO - Find more eloquent way to appropriately space this label */}
                             <div>
                             <label htmlFor={"brightness"}>{`Brightness: ${globalSettingsRes.brightness}`}</label>
                             </div>
-                        <input id="brightness" type='range' min={1} max={10} value={globalSettingsRes.brightness} onChange={(event) => updateSetting('brightness', event.target.value)} />
+                        <Slider id="brightness" min={1} max={10} value={globalSettingsRes.brightness} onChange={(event, newValue: number | number[]) => updateSetting('brightness', typeof newValue === 'number' ? newValue : newValue[0])} />
                         </div>
                         
                         <div>
-                            {/* TODO - Find more eloquent way to appropriately space this label */}
                             <div>
                             <label htmlFor={"contrast"}>{`Contrast: ${10 - globalSettingsRes.contrast}`}</label>
                             </div>
-                        <input id="contrast" type='range' min={1} max={10} value={Math.abs(10 - globalSettingsRes.contrast)} onChange={(event) => updateSetting('contrast', event.target.value)} />
+                        <Slider id="contrast" min={1} max={10} value={Math.abs(10 - globalSettingsRes.contrast)} onChange={(event, newValue: number | number[]) => updateSetting('contrast', typeof newValue === 'number' ? newValue : newValue[0])} />
                         </div>
                     </div>
                     <div>
                         <div>
                         <label htmlFor={"midiClockState"}>{"Midi Clock"}</label>
-                        <input
-                            id="midiClockState"
-                            type="checkbox"
-                            checked={globalSettingsRes.midiClockState === 1}
-                            onChange={(event) => updateSetting('midiClockState', event.target.checked ? '1' : '0')}
-                        />
+                        <FormControl>
+                            <Checkbox
+                                id="midiClockState"
+                                checked={globalSettingsRes.midiClockState === 1}
+                                style={{ backgroundColor: 'gray' }}
+                                onChange={(event) => updateSetting('midiClockState', event.target.checked ? '1' : '0')}
+                            />
+                        </FormControl>
                         </div>
                         <div>
                         <label htmlFor={"midiClockMsb"}>{"BPM "}</label>
-                        <input
-                            id="midiClockMsb"
-                            disabled={globalSettingsRes.midiClockState === 0}
-                            type="number"
-                            value={`${bpm > 0 ? bpm : ''}`}
-                            onChange={handleBpmChange}
-                            placeholder='30 - 300'
-                            max={300}
-                            style={{ backgroundColor: 'white', color: 'black' }}
-                        />
-                        {bpmError && <div style={{color: 'red'}}>{"Value must be between 30 and 300"}</div>}
+                            <TextField
+                                id="midiClockMsb"
+                                disabled={globalSettingsRes.midiClockState === 0}
+                                variant='outlined'
+                                value={`${bpm > 0 ? bpm : ''}`}
+                                onChange={handleBpmChange}
+                                style={{ backgroundColor: 'gray', color: 'white' }}
+                                inputProps={{
+                                    placeholder: '30 - 300',
+                                    type: "number",
+                                    max: 300
+                                }}
+                            />
+                            {bpmError && <div style={{color: 'red'}}>{"Value must be between 30 and 300"}</div>}
                         </div>
                     </div>
                     </Grid>
@@ -492,26 +539,35 @@ const GlobalSettings: React.FC<GlobalSettingsProps> = ({ midiAccess, status }) =
                     <div>
                         <span>
                             <label htmlFor={"midiInputChannel"}>{"Midi Channel In "}</label>
-                            <select id="midiInputChannel" value={globalSettingsRes.midiInputChannel} onChange={(event) => updateSetting('midiInputChannel', event.target.value)}>
-                                {midiInputChannelOptions.map((option, i) => <option key={`midiInOption${i+1}`} value={i}>{option}</option>)}
-                            </select>
+                            <FormControl>
+                                {/* <InputLabel id="midiInputChannel-label" style={{ color: 'white' }}>Midi Channel In</InputLabel> */}
+                                <Select
+                                    autoWidth
+                                    id="midiInputChannel"
+                                    value={globalSettingsRes.midiInputChannel}
+                                    onChange={(event) => updateSetting('midiInputChannel', event.target.value)}
+                                    style={{ backgroundColor: 'gray', color: 'white', height: '2rem', width: '10rem', marginBottom: '10px', marginLeft: '10px' }}
+                                    >
+                                    {midiInputChannelOptions.map((option, i) => <MenuItem key={`midiInOption${i+1}`} value={i}>{option}</MenuItem>)}
+                                </Select>
+                            </FormControl>
                         </span>
                     </div>
                     <div>
                         {/* TODO: Refactor binary logic */}
                         <h3>Control Jack In</h3>
-                        <button style={globalSettingsRes.controlJackMode === 1 ? activeButtonStyle : { width: '100%' } }
+                        <Button style={globalSettingsRes.controlJackMode === 1 ? activeButtonStyle : { width: '100%' } }
                             onClick={() => updateSetting('controlJackMode', globalSettingsRes.controlJackMode === 0 ? '1' : '0')}
-                        >{globalSettingsRes.controlJackMode === 0 ? 'Expression Pedal' : 'Three Button Switch'}</button>
+                        >{globalSettingsRes.controlJackMode === 0 ? 'Expression Pedal' : 'Three Button Switch'}</Button>
                     </div>
                     <div>
                         <h3>Utility Jack</h3>
-                         <button style={globalSettingsRes.utilityJackPolarity === 1 ? activeButtonStyle : { width: '100%' }}
+                         <Button style={globalSettingsRes.utilityJackPolarity === 1 ? activeButtonStyle : { width: '100%' }}
                             onClick={() => updateSetting('utilityJackPolarity', globalSettingsRes.utilityJackPolarity === 0 ? '1' : '0')}
-                        >{globalSettingsRes.utilityJackPolarity === 1 ? 'Normally Open (NO)' : 'Normally Closed (NC)'}</button>
-                         <button style={globalSettingsRes.utilityJackMode === 0 ? activeButtonStyle : { width: '100%' }}
+                        >{globalSettingsRes.utilityJackPolarity === 1 ? 'Normally Open (NO)' : 'Normally Closed (NC)'}</Button>
+                         <Button style={globalSettingsRes.utilityJackMode === 0 ? activeButtonStyle : { width: '100%' }}
                             onClick={() => updateSetting('utilityJackMode', globalSettingsRes.utilityJackMode === 0 ? '1' : '0')}
-                        >{globalSettingsRes.utilityJackMode === 0 ? 'Momentary' : 'Latching'}</button>
+                        >{globalSettingsRes.utilityJackMode === 0 ? 'Momentary' : 'Latching'}</Button>
                     </div>
                     </Grid>
 
@@ -520,33 +576,60 @@ const GlobalSettings: React.FC<GlobalSettingsProps> = ({ midiAccess, status }) =
                         <h3>External Foot Switch Settings</h3>
                         <div>
                         <span>
-                            <label htmlFor={"sw5"}>{"A"}</label>
-                            <select id="sw5" disabled={globalSettingsRes.controlJackMode === 1} value={globalSettingsRes.switch5Function} onChange={(event) => updateSetting('switch5Function', event.target.value)}>
-                                {footswitchFunctions.map((option, i) => <option key={`sw5func${i}`} value={i}>{option}</option>)}
-                            </select>
+                            {/* <label htmlFor={"sw5"}>{"A"}</label> */}
+                            <FormControl>
+                                {/* <InputLabel id="sw5-label" style={{ color: 'white' }}>Function A</InputLabel> */}
+                                <Select
+                                    autoWidth
+                                    id="sw5"
+                                    value={globalSettingsRes.switch5Function}
+                                    onChange={(event) => updateSetting('switch5Function', event.target.value)}
+                                    style={{ backgroundColor: 'gray', color: 'white', height: '2rem', width: '10rem', marginBottom: '10px', marginLeft: '10px' }}
+                                    >
+                                    {footswitchFunctions.map((option, i) => <MenuItem key={`sw5func${i}`} value={i}>{option}</MenuItem>)}
+                                </Select>
+                            </FormControl>
                         </span>
                         </div>
                         
                         <div>
                         <span>
-                            <label htmlFor={"sw6"}>{"B"}</label>
-                            <select id="sw6" disabled={globalSettingsRes.controlJackMode === 1} value={globalSettingsRes.switch6Function} onChange={(event) => updateSetting('switch6Function', event.target.value)}>
-                                {footswitchFunctions.map((option, i) => <option key={`sw6func${i}`} value={i}>{option}</option>)}
-                            </select>
+                            {/* <label htmlFor={"sw6"}>{"B"}</label> */}
+                            <FormControl>
+                                {/* <InputLabel id="sw6-label" style={{ color: 'white' }}>Function B</InputLabel> */}
+                                <Select
+                                    autoWidth
+                                    id="sw6"
+                                    value={globalSettingsRes.switch6Function}
+                                    onChange={(event) => updateSetting('switch6Function', event.target.value)}
+                                    style={{ backgroundColor: 'gray', color: 'white', height: '2rem', width: '10rem', marginBottom: '10px', marginLeft: '10px' }}
+                                    >
+                                    {footswitchFunctions.map((option, i) => <MenuItem key={`sw6func${i}`} value={i}>{option}</MenuItem>)}
+                                </Select>
+                            </FormControl>
                         </span>
                         </div>
                         
                         <div>
                         <span>
-                            <label htmlFor={"sw7"}>{"C"}</label>
-                            <select id="sw7" disabled={globalSettingsRes.controlJackMode === 1} value={globalSettingsRes.switch7Function} onChange={(event) => updateSetting('switch7Function', event.target.value)}>
-                                {footswitchFunctions.map((option, i) => <option key={`sw7func${i}`} value={i}>{option}</option>)}
-                            </select>
+                            {/* <label htmlFor={"sw7"}>{"C"}</label> */}
+                            <FormControl>
+                                {/* <InputLabel id="sw7-label" style={{ color: 'white' }}>Function A</InputLabel> */}
+                                <Select
+                                    autoWidth
+                                    id="sw7"
+                                    value={globalSettingsRes.switch7Function}
+                                    onChange={(event) => updateSetting('switch7Function', event.target.value)}
+                                    style={{ backgroundColor: 'gray', color: 'white', height: '2rem', width: '10rem', marginBottom: '10px', marginLeft: '10px' }}
+                                    >
+                                    {footswitchFunctions.map((option, i) => <MenuItem key={`sw7func${i}`} value={i}>{option}</MenuItem>)}
+                                </Select>
+                            </FormControl>
                         </span>
                         </div>
                     </div>
                     <div style={{ paddingTop: '1rem' }}>
-                        <button onClick={handleUpdateFirmwareVersion} style={{ width: '100%' }}>Update Firmware</button>
+                        <Button onClick={handleUpdateFirmwareVersion} style={{ width: '100%' }}>Update Firmware</Button>
                     </div>
                     </Grid>
                     <Modal open={firmwareModalOpen}>
@@ -556,8 +639,8 @@ const GlobalSettings: React.FC<GlobalSettingsProps> = ({ midiAccess, status }) =
                         </h2>
                         <Divider />
                         <div style={{ paddingTop: '1rem' }}>
-                            <button onClick={handleUpdateFromFile} style={{ width: '50%' }}>Update from File</button>
-                            <button onClick={handleUpdateFromWeb} style={{ width: '50%' }}>Update from Web</button>
+                            <Button onClick={handleUpdateFromFile} style={{ width: '50%' }}>Update from File</Button>
+                            <Button onClick={handleUpdateFromWeb} style={{ width: '50%' }}>Update from Web</Button>
                         </div>
                         <div id="modal-modal-description">
                             <p>{`Installed Firmware: ${installedFirmwareVersion}`}</p>
@@ -566,8 +649,8 @@ const GlobalSettings: React.FC<GlobalSettingsProps> = ({ midiAccess, status }) =
                         <Box>Markdown</Box>
                         <LinearProgress variant='determinate' value={downloadProgress} />
                         <div style={{ paddingTop: '1rem' }}>
-                            <button onClick={() => setFirmwareModalOpen(false)} style={{ width: '50%' }}>Cancel</button>
-                            <button disabled={!isFirmwareLoaded} onClick={handleUpdateFromWeb} style={{ width: '50%' }}>Update</button>
+                            <Button onClick={() => setFirmwareModalOpen(false)} style={{ width: '50%' }}>Cancel</Button>
+                            <Button disabled={!isFirmwareLoaded} onClick={handleUpdateFromWeb} style={{ width: '50%' }}>Update</Button>
                         </div>
                         </Box>
                     </Modal>
