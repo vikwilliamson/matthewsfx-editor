@@ -615,16 +615,16 @@ const GlobalSettings: React.FC<GlobalSettingsProps> = ({ midiAccess, status }) =
                     </div>
                     <div>
                         <h3>Control Jack In</h3>
-                        <Button style={globalSettingsRes.controlJackMode === 1 ? activeButtonStyle : { width: '100%' } }
+                        <Button variant={globalSettingsRes.controlJackMode === 1 ? 'contained' : 'outlined' }
                             onClick={() => updateSetting('controlJackMode', globalSettingsRes.controlJackMode === 0 ? '1' : '0')}
                         >{globalSettingsRes.controlJackMode === 0 ? 'Expression Pedal' : 'Three Button Switch'}</Button>
                     </div>
                     <div>
                         <h3>Utility Jack</h3>
-                         <Button style={globalSettingsRes.utilityJackPolarity === 1 ? activeButtonStyle : { width: '100%' }}
+                        <Button variant={globalSettingsRes.utilityJackPolarity === 1 ? 'contained' : 'outlined' }
                             onClick={() => updateSetting('utilityJackPolarity', globalSettingsRes.utilityJackPolarity === 0 ? '1' : '0')}
                         >{globalSettingsRes.utilityJackPolarity === 1 ? 'Normally Open (NO)' : 'Normally Closed (NC)'}</Button>
-                         <Button style={globalSettingsRes.utilityJackMode === 0 ? activeButtonStyle : { width: '100%' }}
+                        <Button variant={globalSettingsRes.utilityJackMode === 0 ? 'contained' : 'outlined' } sx={{ marginTop: '0.5rem' }}
                             onClick={() => updateSetting('utilityJackMode', globalSettingsRes.utilityJackMode === 0 ? '1' : '0')}
                         >{globalSettingsRes.utilityJackMode === 0 ? 'Momentary' : 'Latching'}</Button>
                     </div>
