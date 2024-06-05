@@ -11,7 +11,7 @@ import Modal from '@mui/material/Modal';
 import { checkIfSysex } from '../../utilities/checkIfSysex';
 import { FirmwareVersionResponse, GlobalSettingsResponse } from '../../types';
 import { identifyOutput } from '../../utilities/identifyOutput';
-import { messages } from '../../assets/dictionary';
+import { commandBytes, messages } from '../../assets/dictionary';
 
 type GlobalSettingsProps = {
     midiAccess: WebMidi.MIDIAccess | null;
@@ -72,6 +72,19 @@ const GlobalSettings: React.FC<GlobalSettingsProps> = ({ midiAccess, status }) =
         midiInputChannel: 0,
     };
 
+    const firmwareVersionInitialState: FirmwareVersionResponse = {
+        mfxId1: 0,
+        mfxId2: 0,
+        mfxId3: 0,
+        productIdLsb: 0,
+        productIdMsb: 0,
+        commandByte: 0,
+        majorVersion10: 0,
+        majorVersion1: 0,
+        minorVersion10: 0,
+        minorVersion1: 0
+    };
+
     const footswitchDropdownValuesInitialState = {
         switch1Function: footswitchFunctions[0],
         switch2Function: footswitchFunctions[0],
@@ -83,6 +96,7 @@ const GlobalSettings: React.FC<GlobalSettingsProps> = ({ midiAccess, status }) =
     }
 
     const [globalSettingsRes, setGlobalSettingsRes] = useState<GlobalSettingsResponse>(globalSettingsInitialState);
+    const [firmwareVersionRes, setFirmwareVersionRes] = useState<FirmwareVersionResponse | {}>(firmwareVersionInitialState);
     const [bpm, setBpm] = useState<number>(0);
     const [bpmError, setBpmError] = useState<boolean>(false);
     const [footswitchDropdownValues, setFootswitchDropdownValues] = useState<object>(footswitchDropdownValuesInitialState);
@@ -111,19 +125,17 @@ const GlobalSettings: React.FC<GlobalSettingsProps> = ({ midiAccess, status }) =
         return { LSB: midiClockLSB, MSB: midiClockMSB };
     };
 
-    const convertHexToAscii = (value: number) => {
-        console.log('Hex value: ', value);
-        try {
-          
+    const retrieveAsciiCharacter = (value: number) => {
+        try {   
           // Check if the value is within the valid ASCII range (32 to 126)
           if (value < 32 || value > 126) {
             throw new Error('Invalid ASCII value');
           }
           
           // Convert integer to ASCII character
-          const asciiChar = String.fromCharCode(value);
+          const charCode = parseInt(String(value), 10);
+          const asciiChar = String.fromCharCode(charCode);
           
-          // Update state with the ASCII character
           return asciiChar;
         } catch (error) {
           console.error('Error converting hexadecimal to ASCII:', error);
@@ -159,13 +171,16 @@ const GlobalSettings: React.FC<GlobalSettingsProps> = ({ midiAccess, status }) =
     }
 
     const handleUpdateFirmwareVersion = () => {
-        // Request firmware version
         if(output.current?.send) {
-            console.log('Message: ', messages.firmwareUpdateVersionRequest.messageData);
             output.current.send(messages.firmwareUpdateVersionRequest.messageData);
         }
+        setFirmwareModalOpen(true);
+    }
 
-        setFirmwareModalOpen(true); 
+    const parseInstalledFirmwareVersion = (response: FirmwareVersionResponse) => {
+        const { majorVersion1, majorVersion10, minorVersion1, minorVersion10 } = response;
+        const version = `${majorVersion10 === 32 ? '': retrieveAsciiCharacter(majorVersion10)}${retrieveAsciiCharacter(majorVersion1)}.${retrieveAsciiCharacter(minorVersion10)}${minorVersion1 === 32 ? '': retrieveAsciiCharacter(minorVersion1)}`;
+        setInstalledFirmwareVersion(version);
     }
 
     const handleUpdateFromFile = () => {
@@ -296,104 +311,92 @@ const GlobalSettings: React.FC<GlobalSettingsProps> = ({ midiAccess, status }) =
         // Only send the MIDI write message if validation is satisfied
         if(((setting !== 'midiClockMsb') || (setting === 'midiClockMsb' && !bpmError))) { 
             const messageToWrite = Object.values(newSettings);
-            // TODO - decide if I want to do this or make the Start of Message and EOX part of the shape
             // First add Start of Message to beginning of array, then add EOX to end of array
             messageToWrite.unshift(0xf0);
             messageToWrite.push(0xf7);
-            // Set command byte to "write"
+            // Set command byte to "global settings write"
             messageToWrite[6] = 0x22;
             output.current?.send(messageToWrite);
         }
     }
 
     useEffect(() => {
-        // Retrieve Global Settings on page load
         const handleMidiMessage = (event: WebMidi.MIDIMessageEvent) => {
+            console.log('Midi Message Received: ', event.data);
+            // TODO: Write function for parsing based on the response that was sent
             if (checkIfSysex(event.data)) {
-            // Parse response into the appropriate object
-                const parsedResponse: GlobalSettingsResponse = {
-                    mfxId1: event.data[1],
-                    mfxId2: event.data[2],
-                    mfxId3: event.data[3],
-                    productIdLsb: event.data[4],
-                    productIdMsb: event.data[5],
-                    commandByte: event.data[6],
-                    tapStatus: event.data[7],
-                    tapStatusMode: event.data[8],
-                    switch1Function: event.data[9],
-                    switch2Function: event.data[10],
-                    switch3Function: event.data[11],
-                    switch4Function: event.data[12],
-                    switch5Function: event.data[13],
-                    switch6Function: event.data[14],
-                    switch7Function: event.data[15],
-                    contrast: event.data[16],
-                    brightness: event.data[17],
-                    controlJackMode: event.data[18],
-                    midiClockState: event.data[19],
-                    midiClockLsb: event.data[20],
-                    midiClockMsb: event.data[21],
-                    utilityJackPolarity: event.data[22],
-                    utilityJackMode: event.data[23],
-                    midiInputChannel: event.data[24],
-                };
+              // Parse response into the appropriate object
+              const commandFromResponse = event.data[6];
+              //@ts-ignore
+              const responseType = Object.keys(commandBytes).find(key => commandBytes[key] === commandFromResponse);
         
-                // Update state with parsed response object
-                setGlobalSettingsRes(parsedResponse);
-        }
-
-          };
+              switch(responseType) {
+                case 'globalSettingsResponse': 
+                  const gSResponse: GlobalSettingsResponse = {
+                  mfxId1: event.data[1],
+                  mfxId2: event.data[2],
+                  mfxId3: event.data[3],
+                  productIdLsb: event.data[4],
+                  productIdMsb: event.data[5],
+                  commandByte: event.data[6],
+                  tapStatus: event.data[7],
+                  tapStatusMode: event.data[8],
+                  switch1Function: event.data[9],
+                  switch2Function: event.data[10],
+                  switch3Function: event.data[11],
+                  switch4Function: event.data[12],
+                  switch5Function: event.data[13],
+                  switch6Function: event.data[14],
+                  switch7Function: event.data[15],
+                  contrast: event.data[16],
+                  brightness: event.data[17],
+                  controlJackMode: event.data[18],
+                  midiClockState: event.data[19],
+                  midiClockLsb: event.data[20],
+                  midiClockMsb: event.data[21],
+                  utilityJackPolarity: event.data[22],
+                  utilityJackMode: event.data[23],
+                  midiInputChannel: event.data[24],
+                };
+                setGlobalSettingsRes(gSResponse);
+                break;
+              case 'firmwareVersionResponse':
+                const fvResponse: FirmwareVersionResponse = {
+                mfxId1: event.data[1],
+                mfxId2: event.data[2],
+                mfxId3: event.data[3],
+                productIdMsb: event.data[4],
+                productIdLsb: event.data[5],
+                commandByte: event.data[6],
+                majorVersion10: event.data[7],
+                majorVersion1: event.data[8],
+                minorVersion10: event.data[9],
+                minorVersion1: event.data[10]
+                };
+                setFirmwareVersionRes(fvResponse);
+                parseInstalledFirmwareVersion(fvResponse);
+                break;
+            default:
+              }
+            }
+          }
 
         if(midiAccess) {
             if(midiAccess.inputs.size > 0 && midiAccess.outputs.size > 0) {
             midiAccess?.inputs.forEach((input) => input.onmidimessage = handleMidiMessage);
             output.current = identifyOutput(midiAccess);
             }
-            if(output.current?.send) {
-                output.current.send(messages.globalSettingsRequest.messageData);
-            }
         }
     }, [])
 
-    // useEffect(() => {
-    //     // Retrieve current firmware information on modal open
-    //     const handleMidiMessage = (event: WebMidi.MIDIMessageEvent) => {
-    //         if (checkIfSysex(event.data)) {
-    //         // Parse response into the appropriate object
-    //             const parsedResponse: FirmwareVersionResponse = {
-    //                 mfxId1: event.data[1],
-    //                 mfxId2: event.data[2],
-    //                 mfxId3: event.data[3],
-    //                 productIdMsb: event.data[4],
-    //                 productIdLsb: event.data[5],
-    //                 commandByte: event.data[6],
-    //                 majorVersion10: event.data[7],
-    //                 majorVersion1: event.data[8],
-    //                 minorVersion10: event.data[9],
-    //                 minorVersion1: event.data[10]
-    //             }
+    useEffect(() => {
+        // Retrieve Global Settings on page load
+        if(output.current?.send) {
+            output.current.send(messages.globalSettingsRequest.messageData);
+        }
+    }, [])
 
-    //             console.log('ParsedRez: ', parsedResponse);
-    //             const { majorVersion1, majorVersion10, minorVersion1, minorVersion10 } = parsedResponse;
-    //             const version = `${majorVersion10 === 20 ? '': majorVersion10}${majorVersion1}.${minorVersion10}${minorVersion1 === 20 ? '': minorVersion1}`;
-    //             console.log('Installed Ver: ', version)
-    //             setInstalledFirmwareVersion(version)
-    //         }
-    // }
-    //
-    // if(midiAccess) {
-    //     if(midiAccess.inputs.size > 0 && midiAccess.outputs.size > 0) {
-    //     midiAccess?.inputs.forEach((input) => input.onmidimessage = handleMidiMessage);
-    //     output.current = identifyOutput(midiAccess);
-    //     }
-    //     if(output.current?.send) {
-    //         console.log('Message: ', messages.firmwareUpdateVersionRequest.messageData);
-    //         output.current.send(messages.firmwareUpdateVersionRequest.messageData);
-    //     }
-    // }  
-    // }, [firmwareModalOpen])
-
-    return(
+    return (
         <>
         {status === 'disconnected' && <h1>Please connect a device.</h1>}
         {status === 'connected' && <>
@@ -446,7 +449,6 @@ const GlobalSettings: React.FC<GlobalSettingsProps> = ({ midiAccess, status }) =
                     <div>
                         <h3>Display Control</h3>
                         <div>
-                            {/* TODO - Find more eloquent way to appropriately space this label */}
                             <div>
                             <label htmlFor={"brightness"}>{`Brightness: ${globalSettingsRes.brightness}`}</label>
                             </div>
@@ -454,7 +456,6 @@ const GlobalSettings: React.FC<GlobalSettingsProps> = ({ midiAccess, status }) =
                         </div>
                         
                         <div>
-                            {/* TODO - Find more eloquent way to appropriately space this label */}
                             <div>
                             <label htmlFor={"contrast"}>{`Contrast: ${10 - globalSettingsRes.contrast}`}</label>
                             </div>
@@ -498,7 +499,6 @@ const GlobalSettings: React.FC<GlobalSettingsProps> = ({ midiAccess, status }) =
                         </span>
                     </div>
                     <div>
-                        {/* TODO: Refactor binary logic */}
                         <h3>Control Jack In</h3>
                         <button style={globalSettingsRes.controlJackMode === 1 ? activeButtonStyle : { width: '100%' } }
                             onClick={() => updateSetting('controlJackMode', globalSettingsRes.controlJackMode === 0 ? '1' : '0')}
