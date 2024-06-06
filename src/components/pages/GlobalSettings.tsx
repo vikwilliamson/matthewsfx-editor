@@ -466,7 +466,6 @@ const GlobalSettings: React.FC<GlobalSettingsProps> = ({ midiAccess, status }) =
         {status === 'disconnected' && <h1>Please connect a device.</h1>}
         {status === 'connected' && <>
         <h1>Global Settings</h1>
-            <div style={{ border: '1px solid white', padding: '5px' }}>
             <div>
                 <Grid container spacing={2}>
                     <Grid item xs={3}>
@@ -688,7 +687,7 @@ const GlobalSettings: React.FC<GlobalSettingsProps> = ({ midiAccess, status }) =
                         </div>
                     </div>
                     <div style={{ paddingTop: '1rem' }}>
-                        <Button onClick={handleUpdateFirmwareVersion} style={{ width: '100%' }}>Update Firmware</Button>
+                        <Button onClick={handleUpdateFirmwareVersion} style={{ width: '100%' }} variant='outlined'>Update Firmware</Button>
                     </div>
                     </Grid>
                     <Modal open={firmwareModalOpen}>
@@ -721,7 +720,6 @@ const GlobalSettings: React.FC<GlobalSettingsProps> = ({ midiAccess, status }) =
                         </Box>
                     </Modal>
                 </Grid>
-            </div>
             </div>
         </>} 
         </>
