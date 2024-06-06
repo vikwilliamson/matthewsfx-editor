@@ -1,0 +1,10 @@
+
+# Firmware Update
+**Directions**
+- Select "Update From File" to select a specific local update file **OR**
+- Select "Update From The Web" to update to the latest version
+- The release notes will appear here
+- To update, press the "Update" button
+-  To quit, press the "Cancel" button
+---
+*If no release notes are displayed, no release notes were found for this release.*

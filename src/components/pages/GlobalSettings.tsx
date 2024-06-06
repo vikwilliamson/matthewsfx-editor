@@ -1,6 +1,7 @@
 // GLOBALS
-import React, { useEffect, useRef, useState } from 'react';
-import * as unzipper from 'unzipper';
+import React, { ChangeEvent, useEffect, useRef, useState } from 'react';
+import ReactMarkdown from 'react-markdown';
+import JSZip from 'jszip';
 // COMPONENTS
 import Box from '@mui/material/Box';
 import Divider from '@mui/material/Divider';
@@ -101,9 +102,19 @@ const GlobalSettings: React.FC<GlobalSettingsProps> = ({ midiAccess, status }) =
     const [bpmError, setBpmError] = useState<boolean>(false);
     const [footswitchDropdownValues, setFootswitchDropdownValues] = useState<object>(footswitchDropdownValuesInitialState);
     const [firmwareModalOpen, setFirmwareModalOpen] = useState<boolean>(false);
+    const [markdownContent, setMarkdownContent] = useState<string>(`# Firmware Update
+    **Directions**
+    - Select "Update From File" to select a specific local update file **OR**
+    - Select "Update From The Web" to update to the latest version
+    - The release notes will appear here
+    - To update, press the "Update" button
+    -  To quit, press the "Cancel" button
+    ---
+    *If no release notes are displayed, no release notes were found for this release.*`);
     const [installedFirmwareVersion, setInstalledFirmwareVersion] = useState<string>('');
     const [fileFirmwareVersion, setFileFirmwareVersion] = useState<string>('Not Selected');
     const [isFirmwareLoaded, setIsFirmwareLoaded] = useState<boolean>(false);
+    const [selectedUpdateFile, setSelectedUpdateFile] = useState<File | null>(null);
     const [downloadProgress, setDownloadProgress] = useState<number>(0);
 
     let output: MidiOutputRef = useRef({} as WebMidi.MIDIOutput);
@@ -170,10 +181,26 @@ const GlobalSettings: React.FC<GlobalSettingsProps> = ({ midiAccess, status }) =
         handleBpmInput(value);
     }
 
+    const fetchMarkdown = async (path?: string) => {
+        const pathToMarkdown = path ?? '../../../public/markdown/firmwareUpdateInstructions.txt';
+
+        try {
+          const response = await fetch('../../../public/markdown/firmwareUpdateInstructions.txt');
+          console.log('Response from Markdown Fetch: ', response)
+          const text = await response.text();
+          console.log('Markdown Text: ', text)
+        //   setMarkdownContent(text);
+        } catch (error) {
+          console.error('Error fetching markdown file:', error);
+        }
+    };
+
     const handleUpdateFirmwareVersion = () => {
         if(output.current?.send) {
             output.current.send(messages.firmwareUpdateVersionRequest.messageData);
         }
+
+        fetchMarkdown();
         setFirmwareModalOpen(true);
     }
 
@@ -183,12 +210,26 @@ const GlobalSettings: React.FC<GlobalSettingsProps> = ({ midiAccess, status }) =
         setInstalledFirmwareVersion(version);
     }
 
+    const handleFileChange = (event: ChangeEvent<HTMLInputElement>) => {
+        const file = event.target.files?.[0];
+        if (file) {
+          setSelectedUpdateFile(file);
+          setIsFirmwareLoaded(true);
+        }
+    };
+
     const handleUpdateFromFile = () => {
-        alert('Update from File!!!');
+        // 1. Open file explorer
+        document.getElementById('fileInput')?.click();
+        // 2. Allow user to select update file
+        // 3. Once selected, store update data in state as if being done via Web
     }
 
     const handleUpdateFromWeb = async () => {
-        alert('Update from Web!!!');
+        // 1. Request compressed update folder from AWS bucket
+        // 2. Unzip folder
+        // 3. Store markdown in state
+        // 4. Store download data in state
 
         // Method 2 - With Unzip
         // try {
@@ -240,35 +281,50 @@ const GlobalSettings: React.FC<GlobalSettingsProps> = ({ midiAccess, status }) =
         //     console.error('Error downloading or unzipping file:', error);
         //   }
 
-        // Method 1 - No Unzip
-        // const xhr = new XMLHttpRequest();
-        // // Hard-coded for now, will write dynamic utility
-        // const url = 's3://matthewseffects-futuristfirmware/Futurist-V03-03.zip';
-    
-        // xhr.open('GET', url, true);
-        // xhr.responseType = 'blob';
-    
-        // xhr.onprogress = (event) => {
-        //   if (event.lengthComputable) {
-        //     const progress = (event.loaded / event.total) * 100;
-        //     setDownloadProgress(progress);
-        //   }
-        // };
-    
-        // xhr.onload = () => {
-        //   if (xhr.status === 200) {
-        //     // File downloaded successfully
-        //     const blob = xhr.response;
-        //     // Do something with the downloaded file
-        //   }
-        // };
-    
-        // xhr.onerror = () => {
-        //   console.error('Error downloading file');
-        // };
-    
-        // xhr.send();
+        const xhr = new XMLHttpRequest();
+        const url = 's3://matthewseffects-futuristfirmware/Futurist-V03-03.zip';
+
+        xhr.open('GET', url, true);
+        xhr.responseType = 'blob';
+
+        xhr.onprogress = (event) => {
+        if (event.lengthComputable) {
+            const progress = (event.loaded / event.total) * 100;
+            setDownloadProgress(progress);
+        }
+        };
+
+        xhr.onload = async () => {
+        if (xhr.status === 200) {
+            const blob = xhr.response;
+            const zip = new JSZip();
+            const zipContent = await zip.loadAsync(blob);
+
+            // Log the filenames
+            zipContent.forEach((relativePath, file) => {
+            console.log('File:', relativePath);
+            });
+        }
+        };
+
+        xhr.onerror = () => {
+        console.error('Error downloading file');
+        };
+
+        xhr.send();
+        setIsFirmwareLoaded(true);
       };
+
+    const handleUpdateFirmware = () => {
+        // Send midi message to device with firmware data from state
+        const messageToSend = messages.firmwareUpdateRequest.messageData;
+        const updateData = selectedUpdateFile?.stream();
+        // Replace unused byte with the data from the selected update file
+        messageToSend.splice(7, 1);
+        if(output.current?.send) {
+            output.current.send(messageToSend);
+        }
+    }
     
     const updateSetting = (setting: string, newValue: string | number) => {
         const valueAsNum = typeof newValue === 'string' ? parseInt(newValue) : newValue;
@@ -562,12 +618,19 @@ const GlobalSettings: React.FC<GlobalSettingsProps> = ({ midiAccess, status }) =
                         <div id="modal-modal-description">
                             <p>{`Installed Firmware: ${installedFirmwareVersion}`}</p>
                             <p>{`File Firmware: ${fileFirmwareVersion}`}</p>
+                            {selectedUpdateFile && <div>Selected File: {selectedUpdateFile.name}</div>}
+                            <input
+                                id="fileInput"
+                                type="file"
+                                style={{ display: 'none' }}
+                                onChange={handleFileChange}
+                            />
                         </div>
-                        <Box>Markdown</Box>
+                        <Box><ReactMarkdown children={markdownContent}></ReactMarkdown></Box>
                         <LinearProgress variant='determinate' value={downloadProgress} />
                         <div style={{ paddingTop: '1rem' }}>
                             <button onClick={() => setFirmwareModalOpen(false)} style={{ width: '50%' }}>Cancel</button>
-                            <button disabled={!isFirmwareLoaded} onClick={handleUpdateFromWeb} style={{ width: '50%' }}>Update</button>
+                            <button disabled={!isFirmwareLoaded} onClick={handleUpdateFirmware} style={{ width: '50%' }}>Update</button>
                         </div>
                         </Box>
                     </Modal>
