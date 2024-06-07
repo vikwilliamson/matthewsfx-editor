@@ -36,9 +36,10 @@ const modalStyle = {
     top: '50%',
     left: '50%',
     transform: 'translate(-50%, -50%)',
-    width: 400,
-    bgcolor: '#e0e0e0',
+    width: 'fit-content',
+    bgcolor: '#313239',
     border: '2px solid #000',
+    color: 'white',
     boxShadow: 24,
     p: 4,
   };
@@ -688,9 +689,9 @@ const GlobalSettings: React.FC<GlobalSettingsProps> = ({ midiAccess, status }) =
                             Update Firmware
                         </h2>
                         <Divider />
-                        <div style={{ paddingTop: '1rem' }}>
-                            <Button onClick={handleUpdateFromFile} style={{ width: '50%' }}>Update from File</Button>
-                            <Button onClick={handleUpdateFromWeb} style={{ width: '50%' }}>Update from Web</Button>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', paddingTop: '1rem' }}>
+                            <Button variant='contained' onClick={handleUpdateFromFile} sx={{ width: '50%', mr: '5px' }}>Update from File</Button>
+                            <Button variant='contained' onClick={handleUpdateFromWeb} sx={{ width: '50%' }}>Update from Web</Button>
                         </div>
                         <div id="modal-modal-description">
                             <p>{`Installed Firmware: ${installedFirmwareVersion}`}</p>
@@ -704,9 +705,9 @@ const GlobalSettings: React.FC<GlobalSettingsProps> = ({ midiAccess, status }) =
                         </div>
                         <Box><ReactMarkdown children={markdownContent}></ReactMarkdown></Box>
                         <LinearProgress variant='determinate' value={downloadProgress} />
-                        <div style={{ paddingTop: '1rem' }}>
-                            <Button onClick={() => setFirmwareModalOpen(false)} style={{ width: '50%' }}>Cancel</Button>
-                            <Button disabled={!isFirmwareLoaded} onClick={handleUpdateFirmware} style={{ width: '50%' }}>Update</Button>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', paddingTop: '1rem' }}>
+                            <Button variant='contained' onClick={() => setFirmwareModalOpen(false)} sx={{ width: '50%', mr: '5px' }}>Cancel</Button>
+                            <Button variant='contained' disabled={!isFirmwareLoaded} onClick={handleUpdateFirmware} sx={{ width: '50%' }}>Update</Button>
                         </div>
                         </Box>
                     </Modal>

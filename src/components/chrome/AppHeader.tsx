@@ -32,7 +32,7 @@ const AppHeader: React.FC<AppHeaderProps> = ({ currentTab, handleSelectTab, stat
 
     return(
         <>
-            <div className="app-header" style={{ display: 'flex', justifyContent: 'space-around', alignItems: 'center' }}>
+            <div className="app-header" style={{ backgroundColor: '#222327', display: 'flex', justifyContent: 'space-around', alignItems: 'center' }}>
                     <FormControl>
                         <Select
                             autoWidth

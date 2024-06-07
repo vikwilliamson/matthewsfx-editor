@@ -13,7 +13,7 @@ const LeftSideBar: React.FC<LeftSideBarProps> = ({ userBanks }: LeftSideBarProps
       })
 
     return(
-        <div style={{ color: 'white', height: '100vh', overflow: 'auto', width: '100%',  }}>
+        <div style={{ backgroundColor: '#222327', color: 'white', height: '100vh', overflow: 'auto', width: '100%', paddingRight: '3px'  }}>
             <h3 style={{ textDecoration: 'underline' }}>PRESETS</h3>
             {allBanks.map((bank, i) => {
                 // Create an array of preset cells to display inside a given bank
