@@ -20,6 +20,7 @@ import { checkIfSysex } from '../../utilities/checkIfSysex';
 import { FirmwareVersionResponse, GlobalSettingsResponse } from '../../types';
 import { identifyOutput } from '../../utilities/identifyOutput';
 import { commandBytes, messages } from '../../assets/dictionary';
+import axios from 'axios';
 
 
 type GlobalSettingsProps = {
@@ -237,6 +238,14 @@ const GlobalSettings: React.FC<GlobalSettingsProps> = ({ midiAccess, status }) =
         // 3. Store markdown in state
         // 4. Store download data in state
 
+        try {
+            const awsResponse = await axios.get('s3://matthewseffects-futuristfirmware/Futurist-V03-03.zip');
+            console.log('Response Type: ', typeof awsResponse.data);
+        }
+        catch (error) {
+            console.error(error);
+        }
+
         // Method 2 - With Unzip
         // try {
         //     const response = await fetch('s3://matthewseffects-futuristfirmware/Futurist-V03-03.zip');
@@ -287,47 +296,69 @@ const GlobalSettings: React.FC<GlobalSettingsProps> = ({ midiAccess, status }) =
         //     console.error('Error downloading or unzipping file:', error);
         //   }
 
-        const xhr = new XMLHttpRequest();
-        const url = 's3://matthewseffects-futuristfirmware/Futurist-V03-03.zip';
+        // const xhr = new XMLHttpRequest();
+        // const url = 's3://matthewseffects-futuristfirmware/Futurist-V03-03.zip';
 
-        xhr.open('GET', url, true);
-        xhr.responseType = 'blob';
+        // xhr.open('GET', url, true);
+        // xhr.responseType = 'blob';
 
-        xhr.onprogress = (event) => {
-        if (event.lengthComputable) {
-            const progress = (event.loaded / event.total) * 100;
-            setDownloadProgress(progress);
-        }
-        };
+        // xhr.onprogress = (event) => {
+        // if (event.lengthComputable) {
+        //     const progress = (event.loaded / event.total) * 100;
+        //     setDownloadProgress(progress);
+        // }
+        // };
 
-        xhr.onload = async () => {
-        if (xhr.status === 200) {
-            const blob = xhr.response;
-            const zip = new JSZip();
-            const zipContent = await zip.loadAsync(blob);
+        // xhr.onload = async () => {
+        // if (xhr.status === 200) {
+        //     const blob = xhr.response;
+        //     const zip = new JSZip();
+        //     const zipContent = await zip.loadAsync(blob);
 
-            // Log the filenames
-            zipContent.forEach((relativePath, file) => {
-            console.log('File:', relativePath);
-            });
-        }
-        };
+        //     // Log the filenames
+        //     zipContent.forEach((relativePath, file) => {
+        //     console.log('File:', relativePath);
+        //     });
+        // }
+        // };
 
-        xhr.onerror = () => {
-        console.error('Error downloading file');
-        };
+        // xhr.onerror = () => {
+        // console.error('Error downloading file');
+        // };
 
-        xhr.send();
-        setIsFirmwareLoaded(true);
+        // xhr.send();
+        // setIsFirmwareLoaded(true);
       };
 
     const handleUpdateFirmware = () => {
         // Send midi message to device with firmware data from state
         const messageToSend = messages.firmwareUpdateRequest.messageData;
-        const updateData = selectedUpdateFile?.stream();
+        const reader = selectedUpdateFile?.stream().getReader();
+        const updateData: number[] = [];
+
+        function push() {
+            // "done" is a Boolean and value a "Uint8Array"
+            if(reader) {
+            reader.read().then(({ done, value }) => {
+              // If there is no more data to read
+              if (done) {
+                console.log("done", done);
+                return;
+              }
+              
+              // Check chunks by logging to the console
+              console.log(done, value);
+              push();
+            });
+           }
+          }
+  
+          push();
+
         // Replace unused byte with the data from the selected update file
-        messageToSend.splice(7, 1);
+        messageToSend.splice(7, 1, ...updateData);
         if(output.current?.send) {
+            console.log(messageToSend);
             output.current.send(messageToSend);
         }
     }
@@ -699,6 +730,7 @@ const GlobalSettings: React.FC<GlobalSettingsProps> = ({ midiAccess, status }) =
                             <input
                                 id="fileInput"
                                 type="file"
+                                accept='.syx'
                                 style={{ display: 'none' }}
                                 onChange={handleFileChange}
                             />
