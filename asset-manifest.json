@@ -1,16 +1,16 @@
 {
   "files": {
-    "main.css": "/matthewsfx-editor/static/css/main.c78ed0d0.css",
-    "main.js": "/matthewsfx-editor/static/js/main.3c6672bd.js",
+    "main.css": "/matthewsfx-editor/static/css/main.fdc2840d.css",
+    "main.js": "/matthewsfx-editor/static/js/main.198c7209.js",
     "static/js/787.e980c37b.chunk.js": "/matthewsfx-editor/static/js/787.e980c37b.chunk.js",
-    "static/media/MFXLogo.svg": "/matthewsfx-editor/static/media/MFXLogo.6a3a24a63650dc0fd75938e78850cfd0.svg",
+    "static/media/V2_SMOOTH_ME_LOGO_White.png": "/matthewsfx-editor/static/media/V2_SMOOTH_ME_LOGO_White.3f93bbc1244c44fead25.png",
     "index.html": "/matthewsfx-editor/index.html",
-    "main.c78ed0d0.css.map": "/matthewsfx-editor/static/css/main.c78ed0d0.css.map",
-    "main.3c6672bd.js.map": "/matthewsfx-editor/static/js/main.3c6672bd.js.map",
+    "main.fdc2840d.css.map": "/matthewsfx-editor/static/css/main.fdc2840d.css.map",
+    "main.198c7209.js.map": "/matthewsfx-editor/static/js/main.198c7209.js.map",
     "787.e980c37b.chunk.js.map": "/matthewsfx-editor/static/js/787.e980c37b.chunk.js.map"
   },
   "entrypoints": [
-    "static/css/main.c78ed0d0.css",
-    "static/js/main.3c6672bd.js"
+    "static/css/main.fdc2840d.css",
+    "static/js/main.198c7209.js"
   ]
 }
