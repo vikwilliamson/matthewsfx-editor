@@ -469,7 +469,7 @@ const GlobalSettings: React.FC<GlobalSettingsProps> = ({ midiAccess, status }) =
             <div>
                 <Grid container spacing={2}>
                     <Grid item xs={3}>
-                    <div>
+                    <div style={{ backgroundColor: '#0f0e13', borderRadius: '3%', display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', height: '55vh', marginLeft: '5px' }}>
                         <h3>Foot Switch Settings</h3>
                         <div>
                         <span style={{ width: '100%' }}>
@@ -546,7 +546,8 @@ const GlobalSettings: React.FC<GlobalSettingsProps> = ({ midiAccess, status }) =
                     </Grid>
 
                     <Grid item xs={3}>
-                    <div>
+                    <div style={{ backgroundColor: '#0f0e13', borderRadius: '3%', display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', height: '100%', paddingLeft: '5px', paddingRight: '5px' }}>
+                        <div>
                         <h3>Display Control</h3>
                         <div>
                             <div>
@@ -561,21 +562,12 @@ const GlobalSettings: React.FC<GlobalSettingsProps> = ({ midiAccess, status }) =
                             </div>
                         <Slider id="contrast" min={1} max={10} value={Math.abs(10 - globalSettingsRes.contrast)} onChange={(event, newValue: number | number[]) => updateSetting('contrast', typeof newValue === 'number' ? newValue : newValue[0])} />
                         </div>
-                    </div>
+                        </div>
                     <div>
                         <div>
-                        <label htmlFor={"midiClockState"}>{"Midi Clock"}</label>
-                        <FormControl>
-                            <Checkbox
-                                id="midiClockState"
-                                checked={globalSettingsRes.midiClockState === 1}
-                                style={{ backgroundColor: 'gray' }}
-                                onChange={(event) => updateSetting('midiClockState', event.target.checked ? '1' : '0')}
-                            />
-                        </FormControl>
+                        <h3>Midi Clock</h3>
                         </div>
                         <div>
-                        <label htmlFor={"midiClockMsb"}>{"BPM "}</label>
                             <TextField
                                 id="midiClockMsb"
                                 disabled={globalSettingsRes.midiClockState === 0}
@@ -589,29 +581,36 @@ const GlobalSettings: React.FC<GlobalSettingsProps> = ({ midiAccess, status }) =
                                     max: 300
                                 }}
                             />
+                            <FormControl>
+                                <Checkbox
+                                    id="midiClockState"
+                                    checked={globalSettingsRes.midiClockState === 1}
+                                    sx={{ borderColor: 'white' }}
+                                    onChange={(event) => updateSetting('midiClockState', event.target.checked ? '1' : '0')}
+                                />
+                            </FormControl>
                             {bpmError && <div style={{color: 'red'}}>{"Value must be between 30 and 300"}</div>}
                         </div>
+                    </div>
                     </div>
                     </Grid>
 
                     <Grid item xs={3}>
-                    <div>
-                        <span>
-                            <label htmlFor={"midiInputChannel"}>{"Midi Channel In "}</label>
+                    <div style={{ backgroundColor: '#0f0e13', borderRadius: '3%', display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', height: '100%' }}>
+                        <div>
+                        <h3>Midi Channel In</h3>
                             <FormControl>
-                                {/* <InputLabel id="midiInputChannel-label" style={{ color: 'white' }}>Midi Channel In</InputLabel> */}
                                 <Select
                                     autoWidth
                                     id="midiInputChannel"
                                     value={globalSettingsRes.midiInputChannel}
                                     onChange={(event) => updateSetting('midiInputChannel', event.target.value)}
-                                    style={{ backgroundColor: 'gray', color: 'white', height: '2rem', width: '10rem', marginBottom: '10px', marginLeft: '10px' }}
+                                    style={{ backgroundColor: 'gray', color: 'white', height: '2rem', width: '10rem' }}
                                     >
                                     {midiInputChannelOptions.map((option, i) => <MenuItem key={`midiInOption${i+1}`} value={i}>{option}</MenuItem>)}
                                 </Select>
                             </FormControl>
-                        </span>
-                    </div>
+                        </div>
                     <div>
                         <h3>Control Jack In</h3>
                         <Button variant={globalSettingsRes.controlJackMode === 1 ? 'contained' : 'outlined' }
@@ -620,23 +619,23 @@ const GlobalSettings: React.FC<GlobalSettingsProps> = ({ midiAccess, status }) =
                     </div>
                     <div>
                         <h3>Utility Jack</h3>
-                        <Button variant={globalSettingsRes.utilityJackPolarity === 1 ? 'contained' : 'outlined' }
+                        <Button sx={{ width: '80%' }} variant={globalSettingsRes.utilityJackPolarity === 1 ? 'contained' : 'outlined' }
                             onClick={() => updateSetting('utilityJackPolarity', globalSettingsRes.utilityJackPolarity === 0 ? '1' : '0')}
                         >{globalSettingsRes.utilityJackPolarity === 1 ? 'Normally Open (NO)' : 'Normally Closed (NC)'}</Button>
-                        <Button variant={globalSettingsRes.utilityJackMode === 0 ? 'contained' : 'outlined' } sx={{ marginTop: '0.5rem' }}
+                        <Button sx={{ marginTop: '0.5rem', width: '80%' }} variant={globalSettingsRes.utilityJackMode === 0 ? 'contained' : 'outlined' }
                             onClick={() => updateSetting('utilityJackMode', globalSettingsRes.utilityJackMode === 0 ? '1' : '0')}
                         >{globalSettingsRes.utilityJackMode === 0 ? 'Momentary' : 'Latching'}</Button>
+                    </div>
                     </div>
                     </Grid>
 
                     <Grid item xs={3}>
-                    <div>
+                    <div style={{ backgroundColor: '#0f0e13', borderRadius: '3%', display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', height: '100%', marginRight: '5px' }}>
+                        <div>
                         <h3>External Foot Switch Settings</h3>
                         <div>
                         <span>
-                            {/* <label htmlFor={"sw5"}>{"A"}</label> */}
                             <FormControl>
-                                {/* <InputLabel id="sw5-label" style={{ color: 'white' }}>Function A</InputLabel> */}
                                 <Select
                                     autoWidth
                                     id="sw5"
@@ -652,9 +651,7 @@ const GlobalSettings: React.FC<GlobalSettingsProps> = ({ midiAccess, status }) =
                         
                         <div>
                         <span>
-                            {/* <label htmlFor={"sw6"}>{"B"}</label> */}
                             <FormControl>
-                                {/* <InputLabel id="sw6-label" style={{ color: 'white' }}>Function B</InputLabel> */}
                                 <Select
                                     autoWidth
                                     id="sw6"
@@ -670,9 +667,7 @@ const GlobalSettings: React.FC<GlobalSettingsProps> = ({ midiAccess, status }) =
                         
                         <div>
                         <span>
-                            {/* <label htmlFor={"sw7"}>{"C"}</label> */}
                             <FormControl>
-                                {/* <InputLabel id="sw7-label" style={{ color: 'white' }}>Function A</InputLabel> */}
                                 <Select
                                     autoWidth
                                     id="sw7"
@@ -687,8 +682,9 @@ const GlobalSettings: React.FC<GlobalSettingsProps> = ({ midiAccess, status }) =
                         </div>
                     </div>
                     <div style={{ paddingTop: '1rem' }}>
-                        <Button onClick={handleUpdateFirmwareVersion} style={{ width: '100%' }} variant='outlined'>Update Firmware</Button>
+                        <Button onClick={handleUpdateFirmwareVersion} style={{ width: '80%' }} variant='outlined'>Update Firmware</Button>
                     </div>
+                    </div> 
                     </Grid>
                     <Modal open={firmwareModalOpen}>
                         <Box sx={modalStyle}>
