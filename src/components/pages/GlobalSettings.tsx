@@ -11,7 +11,6 @@ import Modal from '@mui/material/Modal';
 import FormControl from '@mui/material/FormControl';
 import Select from '@mui/material/Select';
 import MenuItem from '@mui/material/MenuItem';
-import InputLabel from '@mui/material/InputLabel';
 import Checkbox from '@mui/material/Checkbox';
 import Button from '@mui/material/Button';
 import TextField from '@mui/material/TextField';
@@ -32,19 +31,13 @@ interface MidiOutputRef {
   current: WebMidi.MIDIOutput | undefined;
 }
 
-const activeButtonStyle = {
-    backgroundColor: 'gray',
-    color: 'white',
-    width: '100%'
-}
-
 const modalStyle = {
     position: 'absolute' as 'absolute',
     top: '50%',
     left: '50%',
     transform: 'translate(-50%, -50%)',
     width: 400,
-    bgcolor: 'background.paper',
+    bgcolor: '#e0e0e0',
     border: '2px solid #000',
     boxShadow: 24,
     p: 4,
@@ -121,7 +114,6 @@ const GlobalSettings: React.FC<GlobalSettingsProps> = ({ midiAccess, status }) =
     ---
     *If no release notes are displayed, no release notes were found for this release.*`);
     const [installedFirmwareVersion, setInstalledFirmwareVersion] = useState<string>('');
-    const [fileFirmwareVersion, setFileFirmwareVersion] = useState<string>('Not Selected');
     const [isFirmwareLoaded, setIsFirmwareLoaded] = useState<boolean>(false);
     const [selectedUpdateFile, setSelectedUpdateFile] = useState<File | null>(null);
     const [downloadProgress, setDownloadProgress] = useState<number>(0);
@@ -203,6 +195,10 @@ const GlobalSettings: React.FC<GlobalSettingsProps> = ({ midiAccess, status }) =
           console.error('Error fetching markdown file:', error);
         }
     };
+
+    const formatFilename = (name: string) => {
+       return name.replace('Futurist-V', '').replace('.syx', '').replace('-', '.');
+    }
 
     const handleUpdateFirmwareVersion = () => {
         if(output.current?.send) {
@@ -571,10 +567,10 @@ const GlobalSettings: React.FC<GlobalSettingsProps> = ({ midiAccess, status }) =
                             <TextField
                                 id="midiClockMsb"
                                 disabled={globalSettingsRes.midiClockState === 0}
-                                variant='outlined'
+                                variant='standard'
                                 value={`${bpm > 0 ? bpm : ''}`}
                                 onChange={handleBpmChange}
-                                style={{ backgroundColor: 'gray', color: 'white' }}
+                                sx={{ backgroundColor: 'gray', color: 'white' }}
                                 inputProps={{
                                     placeholder: '30 - 300',
                                     type: "number",
@@ -698,8 +694,7 @@ const GlobalSettings: React.FC<GlobalSettingsProps> = ({ midiAccess, status }) =
                         </div>
                         <div id="modal-modal-description">
                             <p>{`Installed Firmware: ${installedFirmwareVersion}`}</p>
-                            <p>{`File Firmware: ${fileFirmwareVersion}`}</p>
-                            {selectedUpdateFile && <div>Selected File: {selectedUpdateFile.name}</div>}
+                            <p>{`File Firmware: ${selectedUpdateFile?.name ? formatFilename(selectedUpdateFile.name) : 'Not Selected'}`}</p>
                             <input
                                 id="fileInput"
                                 type="file"

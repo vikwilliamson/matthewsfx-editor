@@ -9,8 +9,7 @@ import Select, { SelectChangeEvent } from '@mui/material/Select';
 import Tabs from '@mui/material/Tabs';
 import Tab from '@mui/material/Tab';
 // ASSETS/DATA
-import logo  from '../../assets/MFXLogo.svg'
-import '../../styles/AppHeader.css';
+import logo  from '../../assets/V2_SMOOTH_ME_LOGO_White.png'
 import { EditorTab, SetStateAction } from '../../types';
 
 
@@ -33,7 +32,7 @@ const AppHeader: React.FC<AppHeaderProps> = ({ currentTab, handleSelectTab, stat
 
     return(
         <>
-            <div className="app-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <div className="app-header" style={{ display: 'flex', justifyContent: 'space-around', alignItems: 'center' }}>
                     <FormControl>
                         <Select
                             autoWidth
@@ -47,14 +46,14 @@ const AppHeader: React.FC<AppHeaderProps> = ({ currentTab, handleSelectTab, stat
                         <MenuItem id="newCreation" value="New Creation">New Creation</MenuItem>
                     </Select>
                     </FormControl>
-                    <div className='logo-container'>
-                        <img src={logo} className="App-logo" alt="logo" width={150} height={150} />
+                    <div style={{ flexGrow: 2, marginTop: '0.5rem' }} className='logo-container'>
+                        <img src={logo} className="App-logo" alt="logo" width={200} height={100} />
                     </div>
                     <div className='status-container'>
                         <p>DEVICE</p>
                         <p style={{ color: status === 'connected' ? 'green' : 'red' }}>{status.toUpperCase()}</p>
                     </div>
-                    <div className='help-container' style={{ marginRight: '2rem' }}>
+                    <div className='help-container' style={{ marginLeft: '0.5rem', marginRight: '2rem' }}>
                         <a href='https://www.matthewseffects.com/editor_manual/' target='_blank' rel='noreferrer'><HelpCenterOutlinedIcon /></a>
                     </div>
                 </div>
