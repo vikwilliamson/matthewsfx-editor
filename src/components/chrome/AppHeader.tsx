@@ -15,11 +15,14 @@ import { EditorTab, SetStateAction } from '../../types';
 
 type AppHeaderProps = {
     currentTab: EditorTab;
+    device: WebMidi.MIDIInput | null;
+    setDevice: (event: SelectChangeEvent) => void;
     handleSelectTab: SetStateAction<EditorTab>;
+    midiDevices: WebMidi.MIDIInput[];
     status: string;
 }
 
-const AppHeader: React.FC<AppHeaderProps> = ({ currentTab, handleSelectTab, status }: AppHeaderProps) => {
+const AppHeader: React.FC<AppHeaderProps> = ({ currentTab, device, setDevice, handleSelectTab, midiDevices, status }: AppHeaderProps) => {
     const [selectedProduct, setSelectedProduct] = useState<string>("The Futurist");
 
     const handleProductSelection = (event: SelectChangeEvent) => {
@@ -36,11 +39,10 @@ const AppHeader: React.FC<AppHeaderProps> = ({ currentTab, handleSelectTab, stat
                     <FormControl>
                         <Select
                             autoWidth
-                            id="product-selection-dropdown"
-                            value={selectedProduct}
-                            onChange={handleProductSelection}
+                            id="device-selection-dropdown"
+                            value={device?.id || ''}
+                            onChange={setDevice}
                             style={{ backgroundColor: 'gray', color: 'white', opacity: '50%', minWidth: '10rem', marginLeft: '10px' }}
-                            disabled
                         >
                         <MenuItem id="futurist" value="The Futurist">The Futurist</MenuItem>
                         <MenuItem id="newCreation" value="New Creation">New Creation</MenuItem>
