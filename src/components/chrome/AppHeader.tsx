@@ -42,6 +42,7 @@ const AppHeader: React.FC<AppHeaderProps> = ({ currentTab, device, setDevice, ha
                             id="device-selection-dropdown"
                             value={device?.id || ''}
                             onChange={setDevice}
+                            disabled={true}
                             style={{ backgroundColor: 'gray', color: 'white', opacity: '50%', minWidth: '10rem', marginLeft: '10px' }}
                         >
                         <MenuItem id="futurist" value="The Futurist">The Futurist</MenuItem>

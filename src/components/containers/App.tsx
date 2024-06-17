@@ -121,7 +121,7 @@ const App: React.FC = () => {
     <Grid item xs={2}>
       <LeftSideBar userBanks={presets} />
     </Grid>
-    <Grid item xs={13}>
+    <Grid item xs={14}>
       <AppHeader midiDevices={midiDevices} device={selectedDevice} setDevice={handleDeviceSelection} status={deviceStatus} currentTab={selectedTab} handleSelectTab={setSelectedTab} />
       <AppContent currentTab={selectedTab} status={deviceStatus} midiAccess={midiAccessObject} />
     </Grid>
