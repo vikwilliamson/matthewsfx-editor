@@ -78,7 +78,7 @@ const AppHeader: React.FC<AppHeaderProps> = ({ currentTab, device, setDevice, ha
                         <a href='https://www.matthewseffects.com/editor_manual/' target='_blank' rel='noreferrer'><HelpCenterOutlinedIcon /></a>
                     </div>
                 </div>
-                <div className='tab-container' style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', borderBottom: '1px solid white' }}>
+                <div className='tab-container' style={{ display: 'flex', justifyContent: 'center', alignItems: 'center'}}>
                 <Box sx={{ width: '100%', pb: 1, pl: 1, pr: 1 }}>
                 <Tabs value={currentTab} onChange={handleTabSelection} textColor='inherit' variant='fullWidth'>
                     <Tab label={EditorTab.Organizer} value={EditorTab.Organizer} defaultChecked />

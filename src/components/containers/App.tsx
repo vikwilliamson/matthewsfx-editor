@@ -5,12 +5,12 @@ import AppContent from './AppContent';
 import AppHeader from '../chrome/AppHeader';
 import LeftSideBar from '../chrome/LeftSideBar';
 
+import Box from '@mui/material/Box';
 import Grid from '@mui/material/Grid';
 import Modal from '@mui/material/Modal';
 import { SelectChangeEvent } from '@mui/material/Select';
 // STYLES
 import '../../styles/App.css';
-import Box from '@mui/material/Box';
 // ASSETS/DATA
 import { Bank, EditorTab } from '../../types';
 
@@ -70,6 +70,7 @@ const App: React.FC = () => {
   };
 
 
+
   useEffect(() => {
     const initMidi = async () => {
       // Check if this browser is compatible first
@@ -77,7 +78,17 @@ const App: React.FC = () => {
         try {
           const access = await navigator.requestMIDIAccess({ sysex: true });
           setMidiAccessObject(access);
-          updateMidiDevices(access);
+          
+          // Check for available MIDI devices on initial load
+          const devices = access.inputs.values();
+
+          for (const input of devices) {
+            if(input.name === 'The Futurist') {
+              setDeviceStatus('connected');
+              // input.onmidimessage = handleMidiMessage;
+            }
+            break;
+          }
           
           // Listen for MIDI state changes
           access.onstatechange = (event) => {

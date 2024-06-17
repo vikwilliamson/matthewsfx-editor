@@ -16,9 +16,11 @@
     "@types/react": "^18.2.46",
     "@types/react-dom": "^18.2.18",
     "gh-pages": "^6.1.1",
+    "jszip": "^3.10.1",
     "lodash": "^4.17.21",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
+    "react-markdown": "^9.0.1",
     "react-scripts": "5.0.1",
     "typescript": "^4.9.5",
     "web-vitals": "^2.1.4"
@@ -51,6 +53,7 @@
   },
   "devDependencies": {
     "@types/lodash": "^4.14.202",
+    "@types/unzipper": "^0.10.9",
     "@types/webmidi": "^2.0.10"
   }
 }

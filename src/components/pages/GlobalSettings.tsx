@@ -1,12 +1,27 @@
 // GLOBALS
-import React, { useEffect, useRef, useState } from 'react';
+import React, { ChangeEvent, useEffect, useRef, useState } from 'react';
+import ReactMarkdown from 'react-markdown';
+import JSZip from 'jszip';
 // COMPONENTS
+import Box from '@mui/material/Box';
+import Divider from '@mui/material/Divider';
 import Grid from '@mui/material/Grid';
+import LinearProgress from '@mui/material/LinearProgress';
+import Modal from '@mui/material/Modal';
+import FormControl from '@mui/material/FormControl';
+import Select from '@mui/material/Select';
+import MenuItem from '@mui/material/MenuItem';
+import InputLabel from '@mui/material/InputLabel';
+import Checkbox from '@mui/material/Checkbox';
+import Button from '@mui/material/Button';
+import TextField from '@mui/material/TextField';
+import Slider from '@mui/material/Slider';
 // DATA/UTILS
 import { checkIfSysex } from '../../utilities/checkIfSysex';
-import { GlobalSettingsResponse } from '../../types';
+import { FirmwareVersionResponse, GlobalSettingsResponse } from '../../types';
 import { identifyOutput } from '../../utilities/identifyOutput';
-import { messages } from '../../assets/dictionary';
+import { commandBytes, messages } from '../../assets/dictionary';
+
 
 type GlobalSettingsProps = {
     midiAccess: WebMidi.MIDIAccess | null;
@@ -22,12 +37,25 @@ const activeButtonStyle = {
     color: 'white',
     width: '100%'
 }
+
+const modalStyle = {
+    position: 'absolute' as 'absolute',
+    top: '50%',
+    left: '50%',
+    transform: 'translate(-50%, -50%)',
+    width: 400,
+    bgcolor: 'background.paper',
+    border: '2px solid #000',
+    boxShadow: 24,
+    p: 4,
+  };
+
 // TODO - make this an iterable type/enum and import it and use it that way instead
 const footswitchFunctions = ['Activate Preset', 'Bank Up', 'Bank Down', 'Preset Up', 'Preset Down', 'Tap: Midi Clock', 'Tap: Utility + Midi Clock'];
 const midiInputChannelOptions = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11', '12', '13', '14', '15', '16', 'Off'];
 
 const GlobalSettings: React.FC<GlobalSettingsProps> = ({ midiAccess, status }) => {
-    const globalSettingsInitialState = {
+    const globalSettingsInitialState: GlobalSettingsResponse = {
         mfxId1: 0,
         mfxId2: 0,
         mfxId3: 0,
@@ -45,117 +73,399 @@ const GlobalSettings: React.FC<GlobalSettingsProps> = ({ midiAccess, status }) =
         switch7Function: 0,
         contrast: 0,
         brightness: 0,
-        controlJackMode: 0,
+        controlJackMode: 1,
         midiClockState: 0,
         midiClockLsb: 0,
         midiClockMsb: 0,
         utilityJackPolarity: 0,
-        utilityJackMode: 0,
+        utilityJackMode: 1,
         midiInputChannel: 0,
     };
+
+    const firmwareVersionInitialState: FirmwareVersionResponse = {
+        mfxId1: 0,
+        mfxId2: 0,
+        mfxId3: 0,
+        productIdLsb: 0,
+        productIdMsb: 0,
+        commandByte: 0,
+        majorVersion10: 0,
+        majorVersion1: 0,
+        minorVersion10: 0,
+        minorVersion1: 0
+    };
+
+    const footswitchDropdownValuesInitialState = {
+        switch1Function: footswitchFunctions[0],
+        switch2Function: footswitchFunctions[0],
+        switch3Function: footswitchFunctions[0],
+        switch4Function: footswitchFunctions[0],
+        switch5Function: footswitchFunctions[0],
+        switch6Function: footswitchFunctions[0],
+        switch7Function: footswitchFunctions[0],
+    }
+
     const [globalSettingsRes, setGlobalSettingsRes] = useState<GlobalSettingsResponse>(globalSettingsInitialState);
+    const [firmwareVersionRes, setFirmwareVersionRes] = useState<FirmwareVersionResponse | {}>(firmwareVersionInitialState);
+    const [bpm, setBpm] = useState<number>(0);
+    const [bpmError, setBpmError] = useState<boolean>(false);
+    const [footswitchDropdownValues, setFootswitchDropdownValues] = useState<object>(footswitchDropdownValuesInitialState);
+    const [firmwareModalOpen, setFirmwareModalOpen] = useState<boolean>(false);
+    const [markdownContent, setMarkdownContent] = useState<string>(`# Firmware Update
+    **Directions**
+    - Select "Update From File" to select a specific local update file **OR**
+    - Select "Update From The Web" to update to the latest version
+    - The release notes will appear here
+    - To update, press the "Update" button
+    -  To quit, press the "Cancel" button
+    ---
+    *If no release notes are displayed, no release notes were found for this release.*`);
+    const [installedFirmwareVersion, setInstalledFirmwareVersion] = useState<string>('');
+    const [fileFirmwareVersion, setFileFirmwareVersion] = useState<string>('Not Selected');
+    const [isFirmwareLoaded, setIsFirmwareLoaded] = useState<boolean>(false);
+    const [selectedUpdateFile, setSelectedUpdateFile] = useState<File | null>(null);
+    const [downloadProgress, setDownloadProgress] = useState<number>(0);
 
     let output: MidiOutputRef = useRef({} as WebMidi.MIDIOutput);
 
+    const debounce = (func: Function, delay: number) => {
+        let timeoutId: NodeJS.Timeout;
+        return (...args: any[]) => {
+          clearTimeout(timeoutId);
+          timeoutId = setTimeout(() => {
+            func(...args);
+          }, delay);
+        };
+      };
+
+    const calculateMidiClockValues = (tempo: number) => {
+        const midiClockMSB = Math.floor(tempo / 128);
+        const midiClockLSB = tempo % 128;
+
+        return { LSB: midiClockLSB, MSB: midiClockMSB };
+    };
+
+    const retrieveAsciiCharacter = (value: number) => {
+        try {   
+          // Check if the value is within the valid ASCII range (32 to 126)
+          if (value < 32 || value > 126) {
+            throw new Error('Invalid ASCII value');
+          }
+          
+          // Convert integer to ASCII character
+          const charCode = parseInt(String(value), 10);
+          const asciiChar = String.fromCharCode(charCode);
+          
+          return asciiChar;
+        } catch (error) {
+          console.error('Error converting hexadecimal to ASCII:', error);
+        }
+      };
+
+    const validateBpm = (value: string) => {
+        const valueAsNum = parseInt(value);
+        // Validation for Midi Clock BPM
+        if(valueAsNum < 30 && valueAsNum !== 0) {
+            // TODO - Create detailed error handling around this
+            setBpmError(true);
+            updateSetting('midiClockMsb', 30);
+        }
+        else if(valueAsNum >= 300) {
+            setBpmError(true);
+            updateSetting('midiClockMsb', 300);
+        }
+        else {
+            setBpmError(false); 
+        }
+    }
+
+    const handleBpmInput = debounce((value: string) => {
+        validateBpm(value);
+        updateSetting('midiClockMsb', value);
+      }, 1000);
+
+    const handleBpmChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+        const { value } = event.target;
+        setBpm(parseInt(value));
+        handleBpmInput(value);
+    }
+
+    const fetchMarkdown = async (path?: string) => {
+        const pathToMarkdown = path ?? '../../../public/markdown/firmwareUpdateInstructions.txt';
+
+        try {
+          const response = await fetch('../../../public/markdown/firmwareUpdateInstructions.txt');
+          console.log('Response from Markdown Fetch: ', response)
+          const text = await response.text();
+          console.log('Markdown Text: ', text)
+        //   setMarkdownContent(text);
+        } catch (error) {
+          console.error('Error fetching markdown file:', error);
+        }
+    };
+
+    const handleUpdateFirmwareVersion = () => {
+        if(output.current?.send) {
+            output.current.send(messages.firmwareUpdateVersionRequest.messageData);
+        }
+
+        fetchMarkdown();
+        setFirmwareModalOpen(true);
+    }
+
+    const parseInstalledFirmwareVersion = (response: FirmwareVersionResponse) => {
+        const { majorVersion1, majorVersion10, minorVersion1, minorVersion10 } = response;
+        const version = `${majorVersion10 === 32 ? '': retrieveAsciiCharacter(majorVersion10)}${retrieveAsciiCharacter(majorVersion1)}.${retrieveAsciiCharacter(minorVersion10)}${minorVersion1 === 32 ? '': retrieveAsciiCharacter(minorVersion1)}`;
+        setInstalledFirmwareVersion(version);
+    }
+
+    const handleFileChange = (event: ChangeEvent<HTMLInputElement>) => {
+        const file = event.target.files?.[0];
+        if (file) {
+          setSelectedUpdateFile(file);
+          setIsFirmwareLoaded(true);
+        }
+    };
+
+    const handleUpdateFromFile = () => {
+        // 1. Open file explorer
+        document.getElementById('fileInput')?.click();
+        // 2. Allow user to select update file
+        // 3. Once selected, store update data in state as if being done via Web
+    }
+
+    const handleUpdateFromWeb = async () => {
+        // 1. Request compressed update folder from AWS bucket
+        // 2. Unzip folder
+        // 3. Store markdown in state
+        // 4. Store download data in state
+
+        // Method 2 - With Unzip
+        // try {
+        //     const response = await fetch('s3://matthewseffects-futuristfirmware/Futurist-V03-03.zip');
+        //     const reader = response.body?.getReader();
+      
+        //     if (!reader) {
+        //       throw new Error('Failed to get reader from response body');
+        //     }
+      
+        //     const totalLength = Number(response.headers.get('Content-Length'));
+        //     let downloadedLength = 0;
+      
+        //     const unzipStream = unzipper.Parse();
+      
+        //     unzipStream.on('entry', (entry) => {
+        //       // Handle each entry in the zip file
+        //       // Here you can extract files or do whatever you need with them
+        //       // For example, you can extract text files and set the content in state
+        //       entry.on('data', (data: Buffer) => {
+        //         // Handle entry data
+        //       });
+      
+        //       entry.on('end', () => {
+        //         // Entry processing complete
+        //       });
+      
+        //       entry.autodrain();
+        //     });
+      
+        //     const stream = response.body?.pipe(unzipStream);
+      
+        //     if (!stream) {
+        //       throw new Error('Failed to create unzip stream');
+        //     }
+      
+        //     stream.on('data', (chunk) => {
+        //       // Update download progress
+        //       downloadedLength += chunk.length;
+        //       const progress = (downloadedLength / totalLength) * 100;
+        //       setDownloadProgress(progress);
+        //     });
+      
+        //     stream.on('end', () => {
+        //       // All data has been read
+        //       console.log('Unzipping complete');
+        //     });
+        //   } catch (error) {
+        //     console.error('Error downloading or unzipping file:', error);
+        //   }
+
+        const xhr = new XMLHttpRequest();
+        const url = 's3://matthewseffects-futuristfirmware/Futurist-V03-03.zip';
+
+        xhr.open('GET', url, true);
+        xhr.responseType = 'blob';
+
+        xhr.onprogress = (event) => {
+        if (event.lengthComputable) {
+            const progress = (event.loaded / event.total) * 100;
+            setDownloadProgress(progress);
+        }
+        };
+
+        xhr.onload = async () => {
+        if (xhr.status === 200) {
+            const blob = xhr.response;
+            const zip = new JSZip();
+            const zipContent = await zip.loadAsync(blob);
+
+            // Log the filenames
+            zipContent.forEach((relativePath, file) => {
+            console.log('File:', relativePath);
+            });
+        }
+        };
+
+        xhr.onerror = () => {
+        console.error('Error downloading file');
+        };
+
+        xhr.send();
+        setIsFirmwareLoaded(true);
+      };
+
+    const handleUpdateFirmware = () => {
+        // Send midi message to device with firmware data from state
+        const messageToSend = messages.firmwareUpdateRequest.messageData;
+        const updateData = selectedUpdateFile?.stream();
+        // Replace unused byte with the data from the selected update file
+        messageToSend.splice(7, 1);
+        if(output.current?.send) {
+            output.current.send(messageToSend);
+        }
+    }
+    
     const updateSetting = (setting: string, newValue: string | number) => {
         const valueAsNum = typeof newValue === 'string' ? parseInt(newValue) : newValue;
         const newSettings = { ...globalSettingsRes, [setting]: valueAsNum };
 
-        setGlobalSettingsRes(newSettings);
+        // Invert contrast
+        if(setting === 'contrast') {
+            newSettings.contrast = Math.abs(valueAsNum - 10);
+        }
 
-        const messageToWrite = Object.values(newSettings);
-        // TODO - decide if I want to do this or make the Start of Message and EOX part of the shape
-        // First add Start of Message to beginning of array, then add EOX to end of array
-        messageToWrite.unshift(0xf0);
-        messageToWrite.push(0xf7);
-        // Set command byte to "write"
-        messageToWrite[6] = 0x22;
+        // Additional logic for Switch Functions
+        // If a Tap function is selected, update appropriate Midi Clock Tap settings as well
+        if(setting.includes('switch')) {
+            const switchNumber = parseInt(setting.substring(6, 7));
 
-        // Validation for Midi Clock BPM
-        if(setting === 'midiClockMsb') {
-            if(valueAsNum <= 30 || valueAsNum >= 300) {
-                // TODO - Create actual detailed error handling/validation around this
-                return;
+            if(valueAsNum === 5) {
+                setFootswitchDropdownValues({...footswitchDropdownValues, [setting]: footswitchFunctions[5]});
+                newSettings.tapStatus = switchNumber - 1;
+                newSettings.tapStatusMode = 1;
+            }
+            else if(valueAsNum === 6) {
+                setFootswitchDropdownValues({...footswitchDropdownValues, [setting]: footswitchFunctions[6]});
+                newSettings.tapStatus = switchNumber - 1;
+                newSettings.tapStatusMode = 0;
+            }
+            else {
+                setFootswitchDropdownValues({...footswitchDropdownValues, [setting]: footswitchFunctions[valueAsNum]});
+                newSettings[setting] = valueAsNum;
+                if(newSettings.tapStatus !== 127) newSettings.tapStatus = 127;
             }
         }
 
-        // TODO
-        // Additional logic for Switch Functions
-        // If a switch is being used for Tap (Tap is enabled w/ value other than 127) then ignore function changes, unless
-        // the function change is Tap-related (options w/ values 5 and 6)
-        // if(setting.includes('switch')) {
-        //     const switchNumber = parseInt(setting.substring(6, 7));
+        if(setting.includes('sb') && !bpmError) {
+            newSettings.midiClockLsb = calculateMidiClockValues(valueAsNum).LSB;
+            newSettings.midiClockMsb = calculateMidiClockValues(valueAsNum).MSB;
+        }
 
-        //     if(valueAsNum === 5) {
-        //         updateSetting('tapStatus', switchNumber);
-        //         updateSetting('tapStatusMode', 1);
-        //     }
-        //     else if(valueAsNum === 6) {
-        //         updateSetting('tapStatus', switchNumber);
-        //         updateSetting('tapStatusMode', 0);
-        //     }
-        //     else {
-        //         updateSetting('tapStatus', 127);
-        //     }
-        // }
+        setGlobalSettingsRes(newSettings);
 
-        output.current?.send(messageToWrite);
+        // Only send the MIDI write message if validation is satisfied
+        if(((setting !== 'midiClockMsb') || (setting === 'midiClockMsb' && !bpmError))) { 
+            const messageToWrite = Object.values(newSettings);
+            // First add Start of Message to beginning of array, then add EOX to end of array
+            messageToWrite.unshift(0xf0);
+            messageToWrite.push(0xf7);
+            // Set command byte to "global settings write"
+            messageToWrite[6] = 0x22;
+            output.current?.send(messageToWrite);
+        }
     }
 
     useEffect(() => {
         const handleMidiMessage = (event: WebMidi.MIDIMessageEvent) => {
+            console.log('Midi Message Received: ', event.data);
+            // TODO: Write function for parsing based on the response that was sent
             if (checkIfSysex(event.data)) {
-            // Parse response into the appropriate object
-            const parsedResponse: GlobalSettingsResponse = {
+              // Parse response into the appropriate object
+              const commandFromResponse = event.data[6];
+              //@ts-ignore
+              const responseType = Object.keys(commandBytes).find(key => commandBytes[key] === commandFromResponse);
+        
+              switch(responseType) {
+                case 'globalSettingsResponse': 
+                  const gSResponse: GlobalSettingsResponse = {
+                  mfxId1: event.data[1],
+                  mfxId2: event.data[2],
+                  mfxId3: event.data[3],
+                  productIdLsb: event.data[4],
+                  productIdMsb: event.data[5],
+                  commandByte: event.data[6],
+                  tapStatus: event.data[7],
+                  tapStatusMode: event.data[8],
+                  switch1Function: event.data[9],
+                  switch2Function: event.data[10],
+                  switch3Function: event.data[11],
+                  switch4Function: event.data[12],
+                  switch5Function: event.data[13],
+                  switch6Function: event.data[14],
+                  switch7Function: event.data[15],
+                  contrast: event.data[16],
+                  brightness: event.data[17],
+                  controlJackMode: event.data[18],
+                  midiClockState: event.data[19],
+                  midiClockLsb: event.data[20],
+                  midiClockMsb: event.data[21],
+                  utilityJackPolarity: event.data[22],
+                  utilityJackMode: event.data[23],
+                  midiInputChannel: event.data[24],
+                };
+                setGlobalSettingsRes(gSResponse);
+                break;
+              case 'firmwareVersionResponse':
+                const fvResponse: FirmwareVersionResponse = {
                 mfxId1: event.data[1],
                 mfxId2: event.data[2],
                 mfxId3: event.data[3],
-                productIdLsb: event.data[4],
-                productIdMsb: event.data[5],
+                productIdMsb: event.data[4],
+                productIdLsb: event.data[5],
                 commandByte: event.data[6],
-                tapStatus: event.data[7],
-                tapStatusMode: event.data[8],
-                switch1Function: event.data[9],
-                switch2Function: event.data[10],
-                switch3Function: event.data[11],
-                switch4Function: event.data[12],
-                switch5Function: event.data[13],
-                switch6Function: event.data[14],
-                switch7Function: event.data[15],
-                contrast: event.data[16],
-                brightness: event.data[17],
-                controlJackMode: event.data[18],
-                midiClockState: event.data[19],
-                midiClockLsb: event.data[20],
-                midiClockMsb: event.data[21],
-                utilityJackPolarity: event.data[22],
-                utilityJackMode: event.data[23],
-                midiInputChannel: event.data[24],
-            };
-    
-            // Update state with parsed response object
-            setGlobalSettingsRes(parsedResponse);
-        }
-
-          };
+                majorVersion10: event.data[7],
+                majorVersion1: event.data[8],
+                minorVersion10: event.data[9],
+                minorVersion1: event.data[10]
+                };
+                setFirmwareVersionRes(fvResponse);
+                parseInstalledFirmwareVersion(fvResponse);
+                break;
+            default:
+              }
+            }
+          }
 
         if(midiAccess) {
             if(midiAccess.inputs.size > 0 && midiAccess.outputs.size > 0) {
             midiAccess?.inputs.forEach((input) => input.onmidimessage = handleMidiMessage);
             output.current = identifyOutput(midiAccess);
             }
-            if(output.current?.send) {
-                output.current.send(messages.globalSettings.messageData);
-            }
         }
     }, [])
 
-    return(
+    useEffect(() => {
+        // Retrieve Global Settings on page load
+        if(output.current?.send) {
+            output.current.send(messages.globalSettingsRequest.messageData);
+        }
+    }, [])
+
+    return (
         <>
         {status === 'disconnected' && <h1>Please connect a device.</h1>}
         {status === 'connected' && <>
         <h1>Global Settings</h1>
-            <div style={{ border: '1px solid white', padding: '5px' }}>
             <div>
                 <Grid container spacing={2}>
                     <Grid item xs={3}>
@@ -163,37 +473,73 @@ const GlobalSettings: React.FC<GlobalSettingsProps> = ({ midiAccess, status }) =
                         <h3>Foot Switch Settings</h3>
                         <div>
                         <span style={{ width: '100%' }}>
-                            <label htmlFor={"sw1"}>{"1"}</label>
-                            <select id="sw1" value={globalSettingsRes.switch1Function} onChange={(event) => updateSetting('switch1Function', event.target.value)}>
-                                {footswitchFunctions.map((option, i) => <option key={`sw1func${i}`} value={i}>{option}</option>)}
-                            </select>
+                            {/* <label htmlFor={"sw1"}>{"1"}</label> */}
+                            <FormControl>
+                                {/* <InputLabel id="sw1-label" style={{ color: 'white' }}>Function 1</InputLabel> */}
+                                <Select
+                                    autoWidth
+                                    id="sw1"
+                                    value={globalSettingsRes.switch1Function}
+                                    onChange={(event) => updateSetting('switch1Function', event.target.value)}
+                                    style={{ backgroundColor: 'gray', color: 'white', height: '2rem', width: '10rem', marginBottom: '10px', marginLeft: '10px' }}
+                                    >
+                                    {footswitchFunctions.map((option, i) => <MenuItem key={`sw1func${i}`} value={i}>{option}</MenuItem>)}
+                                </Select>
+                            </FormControl>
                         </span>
                         </div>
                         
                         <div>
                         <span>
-                            <label htmlFor={"sw2"}>{"2"}</label>
-                            <select id="sw2" value={globalSettingsRes.switch2Function} onChange={(event) => updateSetting('switch2Function', event.target.value)}>
-                                {footswitchFunctions.map((option, i) => <option key={`sw2func${i}`} value={i}>{option}</option>)}
-                            </select>
+                            {/* <label htmlFor={"sw2"}>{"2"}</label> */}
+                            <FormControl>
+                                {/* <InputLabel id="sw2-label" style={{ color: 'white' }}>Function 2</InputLabel> */}
+                                <Select
+                                    autoWidth
+                                    id="sw2"
+                                    value={globalSettingsRes.switch2Function}
+                                    onChange={(event) => updateSetting('switch2Function', event.target.value)}
+                                    style={{ backgroundColor: 'gray', color: 'white', height: '2rem', width: '10rem', marginBottom: '10px', marginLeft: '10px' }}
+                                    >
+                                    {footswitchFunctions.map((option, i) => <MenuItem key={`sw2func${i}`} value={i}>{option}</MenuItem>)}
+                                </Select>
+                            </FormControl>
                         </span>
                         </div>
                         
                         <div>
                         <span>
-                            <label htmlFor={"sw3"}>{"3"}</label>
-                            <select id="sw3" value={globalSettingsRes.switch3Function} onChange={(event) => updateSetting('switch3Function', event.target.value)}>
-                                {footswitchFunctions.map((option, i) => <option key={`sw3func${i}`} value={i}>{option}</option>)}
-                            </select>
+                            {/* <label htmlFor={"sw3"}>{"3"}</label> */}
+                            <FormControl>
+                                {/* <InputLabel id="sw3-label" style={{ color: 'white' }}>Function 3</InputLabel> */}
+                                <Select
+                                    autoWidth
+                                    id="sw3"
+                                    value={globalSettingsRes.switch3Function}
+                                    onChange={(event) => updateSetting('switch3Function', event.target.value)}
+                                    style={{ backgroundColor: 'gray', color: 'white', height: '2rem', width: '10rem', marginBottom: '10px', marginLeft: '10px' }}
+                                    >
+                                    {footswitchFunctions.map((option, i) => <MenuItem key={`sw3func${i}`} value={i}>{option}</MenuItem>)}
+                                </Select>
+                            </FormControl>
                         </span>
                         </div>
                         
                         <div>
                         <span>
-                            <label htmlFor={"sw4"}>{"4"}</label>
-                            <select id="sw4" value={globalSettingsRes.switch4Function} onChange={(event) => updateSetting('switch4Function', event.target.value)}>
-                                {footswitchFunctions.map((option, i) => <option key={`sw4func${i}`} value={i}>{option}</option>)}
-                            </select>
+                            {/* <label htmlFor={"sw4"}>{"4"}</label> */}
+                            <FormControl>
+                                {/* <InputLabel id="sw4-label" style={{ color: 'white' }}>Function 4</InputLabel> */}
+                                <Select
+                                    autoWidth
+                                    id="sw4"
+                                    value={globalSettingsRes.switch4Function}
+                                    onChange={(event) => updateSetting('switch4Function', event.target.value)}
+                                    style={{ backgroundColor: 'gray', color: 'white', height: '2rem', width: '10rem', marginBottom: '10px', marginLeft: '10px' }}
+                                    >
+                                    {footswitchFunctions.map((option, i) => <MenuItem key={`sw4func${i}`} value={i}>{option}</MenuItem>)}
+                                </Select>
+                            </FormControl>
                         </span>
                         </div>
                     </div>
@@ -203,44 +549,47 @@ const GlobalSettings: React.FC<GlobalSettingsProps> = ({ midiAccess, status }) =
                     <div>
                         <h3>Display Control</h3>
                         <div>
-                            {/* TODO - Find more eloquent way to appropriately space this label */}
                             <div>
                             <label htmlFor={"brightness"}>{`Brightness: ${globalSettingsRes.brightness}`}</label>
                             </div>
-                        <input id="brightness" type='range' min={0} max={10} value={globalSettingsRes.brightness} onChange={(event) => updateSetting('brightness', event.target.value)} />
+                        <Slider id="brightness" min={1} max={10} value={globalSettingsRes.brightness} onChange={(event, newValue: number | number[]) => updateSetting('brightness', typeof newValue === 'number' ? newValue : newValue[0])} />
                         </div>
                         
                         <div>
-                            {/* TODO - Find more eloquent way to appropriately space this label */}
                             <div>
-                            <label htmlFor={"contrast"}>{`Contrast: ${globalSettingsRes.contrast}`}</label>
+                            <label htmlFor={"contrast"}>{`Contrast: ${10 - globalSettingsRes.contrast}`}</label>
                             </div>
-                        <input id="contrast" type='range' min={0} max={10} value={globalSettingsRes.contrast} onChange={(event) => updateSetting('contrast', event.target.value)} />
+                        <Slider id="contrast" min={1} max={10} value={Math.abs(10 - globalSettingsRes.contrast)} onChange={(event, newValue: number | number[]) => updateSetting('contrast', typeof newValue === 'number' ? newValue : newValue[0])} />
                         </div>
                     </div>
                     <div>
                         <div>
                         <label htmlFor={"midiClockState"}>{"Midi Clock"}</label>
-                        <input
-                            id="midiClockState"
-                            type="checkbox"
-                            checked={globalSettingsRes.midiClockState === 0 ? false : true}
-                            onChange={(event) => updateSetting('midiClockState', event.target.checked ? '1' : '0')}
-                        />
+                        <FormControl>
+                            <Checkbox
+                                id="midiClockState"
+                                checked={globalSettingsRes.midiClockState === 1}
+                                style={{ backgroundColor: 'gray' }}
+                                onChange={(event) => updateSetting('midiClockState', event.target.checked ? '1' : '0')}
+                            />
+                        </FormControl>
                         </div>
                         <div>
                         <label htmlFor={"midiClockMsb"}>{"BPM "}</label>
-                        <input
-                            id="midiClockMsb"
-                            disabled={globalSettingsRes.midiClockState === 0 ? true : false}
-                            type="text"
-                            value={globalSettingsRes.midiClockMsb}
-                            onChange={(event) => updateSetting('midiClockMsb', event.target.value)}
-                            placeholder='30 - 300'
-                            min={30}
-                            max={300}
-                            style={{ backgroundColor: 'white', color: 'black' }}
-                        />
+                            <TextField
+                                id="midiClockMsb"
+                                disabled={globalSettingsRes.midiClockState === 0}
+                                variant='outlined'
+                                value={`${bpm > 0 ? bpm : ''}`}
+                                onChange={handleBpmChange}
+                                style={{ backgroundColor: 'gray', color: 'white' }}
+                                inputProps={{
+                                    placeholder: '30 - 300',
+                                    type: "number",
+                                    max: 300
+                                }}
+                            />
+                            {bpmError && <div style={{color: 'red'}}>{"Value must be between 30 and 300"}</div>}
                         </div>
                     </div>
                     </Grid>
@@ -249,26 +598,34 @@ const GlobalSettings: React.FC<GlobalSettingsProps> = ({ midiAccess, status }) =
                     <div>
                         <span>
                             <label htmlFor={"midiInputChannel"}>{"Midi Channel In "}</label>
-                            <select id="midiInputChannel" value={globalSettingsRes.midiInputChannel} onChange={(event) => updateSetting('midiInputChannel', event.target.value)}>
-                                {midiInputChannelOptions.map((option, i) => <option key={`midiInOption${i+1}`} value={i}>{option}</option>)}
-                            </select>
+                            <FormControl>
+                                {/* <InputLabel id="midiInputChannel-label" style={{ color: 'white' }}>Midi Channel In</InputLabel> */}
+                                <Select
+                                    autoWidth
+                                    id="midiInputChannel"
+                                    value={globalSettingsRes.midiInputChannel}
+                                    onChange={(event) => updateSetting('midiInputChannel', event.target.value)}
+                                    style={{ backgroundColor: 'gray', color: 'white', height: '2rem', width: '10rem', marginBottom: '10px', marginLeft: '10px' }}
+                                    >
+                                    {midiInputChannelOptions.map((option, i) => <MenuItem key={`midiInOption${i+1}`} value={i}>{option}</MenuItem>)}
+                                </Select>
+                            </FormControl>
                         </span>
                     </div>
                     <div>
-                        {/* TODO: Refactor binary logic */}
                         <h3>Control Jack In</h3>
-                        <button style={globalSettingsRes.controlJackMode === 1 ? activeButtonStyle : { width: '100%' } }
+                        <Button variant={globalSettingsRes.controlJackMode === 1 ? 'contained' : 'outlined' }
                             onClick={() => updateSetting('controlJackMode', globalSettingsRes.controlJackMode === 0 ? '1' : '0')}
-                        >{globalSettingsRes.controlJackMode === 0 ? 'Expression Pedal' : 'Three Button Switch'}</button>
+                        >{globalSettingsRes.controlJackMode === 0 ? 'Expression Pedal' : 'Three Button Switch'}</Button>
                     </div>
                     <div>
                         <h3>Utility Jack</h3>
-                         <button style={globalSettingsRes.utilityJackPolarity === 1 ? activeButtonStyle : { width: '100%' }}
+                        <Button variant={globalSettingsRes.utilityJackPolarity === 1 ? 'contained' : 'outlined' }
                             onClick={() => updateSetting('utilityJackPolarity', globalSettingsRes.utilityJackPolarity === 0 ? '1' : '0')}
-                        >{globalSettingsRes.utilityJackPolarity === 0 ? 'Normally Closed (NC)' : 'Normally Open (NO)'}</button>
-                         <button style={globalSettingsRes.utilityJackMode === 1 ? activeButtonStyle : { width: '100%' }}
+                        >{globalSettingsRes.utilityJackPolarity === 1 ? 'Normally Open (NO)' : 'Normally Closed (NC)'}</Button>
+                        <Button variant={globalSettingsRes.utilityJackMode === 0 ? 'contained' : 'outlined' } sx={{ marginTop: '0.5rem' }}
                             onClick={() => updateSetting('utilityJackMode', globalSettingsRes.utilityJackMode === 0 ? '1' : '0')}
-                        >{globalSettingsRes.utilityJackMode === 0 ? 'Momentary' : 'Latching'}</button>
+                        >{globalSettingsRes.utilityJackMode === 0 ? 'Momentary' : 'Latching'}</Button>
                     </div>
                     </Grid>
 
@@ -277,37 +634,92 @@ const GlobalSettings: React.FC<GlobalSettingsProps> = ({ midiAccess, status }) =
                         <h3>External Foot Switch Settings</h3>
                         <div>
                         <span>
-                            <label htmlFor={"sw5"}>{"5"}</label>
-                            <select id="sw5" value={globalSettingsRes.switch5Function} onChange={(event) => updateSetting('switch5Function', event.target.value)}>
-                                {footswitchFunctions.map((option, i) => <option key={`sw5func${i}`} value={i}>{option}</option>)}
-                            </select>
+                            {/* <label htmlFor={"sw5"}>{"A"}</label> */}
+                            <FormControl>
+                                {/* <InputLabel id="sw5-label" style={{ color: 'white' }}>Function A</InputLabel> */}
+                                <Select
+                                    autoWidth
+                                    id="sw5"
+                                    value={globalSettingsRes.switch5Function}
+                                    onChange={(event) => updateSetting('switch5Function', event.target.value)}
+                                    style={{ backgroundColor: 'gray', color: 'white', height: '2rem', width: '10rem', marginBottom: '10px', marginLeft: '10px' }}
+                                    >
+                                    {footswitchFunctions.map((option, i) => <MenuItem key={`sw5func${i}`} value={i}>{option}</MenuItem>)}
+                                </Select>
+                            </FormControl>
                         </span>
                         </div>
                         
                         <div>
                         <span>
-                            <label htmlFor={"sw6"}>{"6"}</label>
-                            <select id="sw6" value={globalSettingsRes.switch6Function} onChange={(event) => updateSetting('switch6Function', event.target.value)}>
-                                {footswitchFunctions.map((option, i) => <option key={`sw6func${i}`} value={i}>{option}</option>)}
-                            </select>
+                            {/* <label htmlFor={"sw6"}>{"B"}</label> */}
+                            <FormControl>
+                                {/* <InputLabel id="sw6-label" style={{ color: 'white' }}>Function B</InputLabel> */}
+                                <Select
+                                    autoWidth
+                                    id="sw6"
+                                    value={globalSettingsRes.switch6Function}
+                                    onChange={(event) => updateSetting('switch6Function', event.target.value)}
+                                    style={{ backgroundColor: 'gray', color: 'white', height: '2rem', width: '10rem', marginBottom: '10px', marginLeft: '10px' }}
+                                    >
+                                    {footswitchFunctions.map((option, i) => <MenuItem key={`sw6func${i}`} value={i}>{option}</MenuItem>)}
+                                </Select>
+                            </FormControl>
                         </span>
                         </div>
                         
                         <div>
                         <span>
-                            <label htmlFor={"sw7"}>{"7"}</label>
-                            <select id="sw7" value={globalSettingsRes.switch7Function} onChange={(event) => updateSetting('switch7Function', event.target.value)}>
-                                {footswitchFunctions.map((option, i) => <option key={`sw7func${i}`} value={i}>{option}</option>)}
-                            </select>
+                            {/* <label htmlFor={"sw7"}>{"C"}</label> */}
+                            <FormControl>
+                                {/* <InputLabel id="sw7-label" style={{ color: 'white' }}>Function A</InputLabel> */}
+                                <Select
+                                    autoWidth
+                                    id="sw7"
+                                    value={globalSettingsRes.switch7Function}
+                                    onChange={(event) => updateSetting('switch7Function', event.target.value)}
+                                    style={{ backgroundColor: 'gray', color: 'white', height: '2rem', width: '10rem', marginBottom: '10px', marginLeft: '10px' }}
+                                    >
+                                    {footswitchFunctions.map((option, i) => <MenuItem key={`sw7func${i}`} value={i}>{option}</MenuItem>)}
+                                </Select>
+                            </FormControl>
                         </span>
                         </div>
                     </div>
                     <div style={{ paddingTop: '1rem' }}>
-                        <button onClick={() => alert('Mock Updating Firmware...')} style={{ width: '100%' }}>Update Firmware</button>
+                        <Button onClick={handleUpdateFirmwareVersion} style={{ width: '100%' }} variant='outlined'>Update Firmware</Button>
                     </div>
                     </Grid>
+                    <Modal open={firmwareModalOpen}>
+                        <Box sx={modalStyle}>
+                        <h2>
+                            Update Firmware
+                        </h2>
+                        <Divider />
+                        <div style={{ paddingTop: '1rem' }}>
+                            <Button onClick={handleUpdateFromFile} style={{ width: '50%' }}>Update from File</Button>
+                            <Button onClick={handleUpdateFromWeb} style={{ width: '50%' }}>Update from Web</Button>
+                        </div>
+                        <div id="modal-modal-description">
+                            <p>{`Installed Firmware: ${installedFirmwareVersion}`}</p>
+                            <p>{`File Firmware: ${fileFirmwareVersion}`}</p>
+                            {selectedUpdateFile && <div>Selected File: {selectedUpdateFile.name}</div>}
+                            <input
+                                id="fileInput"
+                                type="file"
+                                style={{ display: 'none' }}
+                                onChange={handleFileChange}
+                            />
+                        </div>
+                        <Box><ReactMarkdown children={markdownContent}></ReactMarkdown></Box>
+                        <LinearProgress variant='determinate' value={downloadProgress} />
+                        <div style={{ paddingTop: '1rem' }}>
+                            <Button onClick={() => setFirmwareModalOpen(false)} style={{ width: '50%' }}>Cancel</Button>
+                            <Button disabled={!isFirmwareLoaded} onClick={handleUpdateFirmware} style={{ width: '50%' }}>Update</Button>
+                        </div>
+                        </Box>
+                    </Modal>
                 </Grid>
-            </div>
             </div>
         </>} 
         </>
