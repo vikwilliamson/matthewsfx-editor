@@ -1,3 +1,5 @@
+// COMPONENTS
+import Card from '@mui/material/Card';
 // ASSETS/DATA
 import { Bank, Preset } from '../../types';
 
@@ -11,7 +13,7 @@ const LeftSideBar: React.FC<LeftSideBarProps> = ({ userBanks }: LeftSideBarProps
       })
 
     return(
-        <div style={{ border: '2px solid white', color: 'white', height: '100vh', overflow: 'auto', width: '100%',  }}>
+        <div style={{ backgroundColor: '#222327', color: 'white', height: '100vh', overflow: 'auto', width: '100%', paddingRight: '3px'  }}>
             <h3 style={{ textDecoration: 'underline' }}>PRESETS</h3>
             {allBanks.map((bank, i) => {
                 // Create an array of preset cells to display inside a given bank
@@ -34,7 +36,7 @@ const LeftSideBar: React.FC<LeftSideBarProps> = ({ userBanks }: LeftSideBarProps
 
                     return (
                         // Extract reused style
-                        <div key={`${bank.bankName}/${preset?.presetName ?? ''}${index}`} style={{ display: 'flex', justifyContent: 'left' }}>
+                        <div key={`${bank.bankName}/${preset?.presetName ?? ''}${index}`} style={{ display: 'flex', justifyContent: 'left', paddingLeft: '5px' }}>
                             {`${prefix}. ${preset.presetName}`}
                         </div>
                         );
@@ -51,7 +53,7 @@ const LeftSideBar: React.FC<LeftSideBarProps> = ({ userBanks }: LeftSideBarProps
                     }
 
                     return (
-                        <div key={`${bank.bankName}/${''}${index}`} style={{ display: 'flex', justifyContent: 'left' }}>
+                        <div key={`${bank.bankName}/${''}${index}`} style={{ display: 'flex', justifyContent: 'left', paddingLeft: '5px' }}>
                             {`${prefix}. `}
                         </div>
                         );
@@ -61,10 +63,10 @@ const LeftSideBar: React.FC<LeftSideBarProps> = ({ userBanks }: LeftSideBarProps
                 });
 
                 return ( 
-                        <div key={`${bank.bankName}${i}`} style={{ border: '1px solid white', marginBottom: '1rem' }}>
+                        <Card key={`${bank.bankName}${i}`} sx={{ backgroundColor: '#0f0e13', color: 'white', marginBottom: '1rem', paddingBottom: '0.5rem' }}>
                             <p style={{ textDecoration: 'underline' }}>{bank.bankName}</p>
                             {presetCells}
-                        </div>
+                        </Card>
                     )})}
         </div>
     )

@@ -11,7 +11,6 @@ import Modal from '@mui/material/Modal';
 import FormControl from '@mui/material/FormControl';
 import Select from '@mui/material/Select';
 import MenuItem from '@mui/material/MenuItem';
-import InputLabel from '@mui/material/InputLabel';
 import Checkbox from '@mui/material/Checkbox';
 import Button from '@mui/material/Button';
 import TextField from '@mui/material/TextField';
@@ -21,6 +20,7 @@ import { checkIfSysex } from '../../utilities/checkIfSysex';
 import { FirmwareVersionResponse, GlobalSettingsResponse } from '../../types';
 import { identifyOutput } from '../../utilities/identifyOutput';
 import { commandBytes, messages } from '../../assets/dictionary';
+import axios from 'axios';
 
 
 type GlobalSettingsProps = {
@@ -32,20 +32,15 @@ interface MidiOutputRef {
   current: WebMidi.MIDIOutput | undefined;
 }
 
-const activeButtonStyle = {
-    backgroundColor: 'gray',
-    color: 'white',
-    width: '100%'
-}
-
 const modalStyle = {
     position: 'absolute' as 'absolute',
     top: '50%',
     left: '50%',
     transform: 'translate(-50%, -50%)',
-    width: 400,
-    bgcolor: 'background.paper',
+    width: 'fit-content',
+    bgcolor: '#313239',
     border: '2px solid #000',
+    color: 'white',
     boxShadow: 24,
     p: 4,
   };
@@ -121,7 +116,6 @@ const GlobalSettings: React.FC<GlobalSettingsProps> = ({ midiAccess, status }) =
     ---
     *If no release notes are displayed, no release notes were found for this release.*`);
     const [installedFirmwareVersion, setInstalledFirmwareVersion] = useState<string>('');
-    const [fileFirmwareVersion, setFileFirmwareVersion] = useState<string>('Not Selected');
     const [isFirmwareLoaded, setIsFirmwareLoaded] = useState<boolean>(false);
     const [selectedUpdateFile, setSelectedUpdateFile] = useState<File | null>(null);
     const [downloadProgress, setDownloadProgress] = useState<number>(0);
@@ -204,6 +198,10 @@ const GlobalSettings: React.FC<GlobalSettingsProps> = ({ midiAccess, status }) =
         }
     };
 
+    const formatFilename = (name: string) => {
+       return name.replace('Futurist-V', '').replace('.syx', '').replace('-', '.');
+    }
+
     const handleUpdateFirmwareVersion = () => {
         if(output.current?.send) {
             output.current.send(messages.firmwareUpdateVersionRequest.messageData);
@@ -239,6 +237,14 @@ const GlobalSettings: React.FC<GlobalSettingsProps> = ({ midiAccess, status }) =
         // 2. Unzip folder
         // 3. Store markdown in state
         // 4. Store download data in state
+
+        try {
+            const awsResponse = await axios.get('s3://matthewseffects-futuristfirmware/Futurist-V03-03.zip');
+            console.log('Response Type: ', typeof awsResponse.data);
+        }
+        catch (error) {
+            console.error(error);
+        }
 
         // Method 2 - With Unzip
         // try {
@@ -290,47 +296,69 @@ const GlobalSettings: React.FC<GlobalSettingsProps> = ({ midiAccess, status }) =
         //     console.error('Error downloading or unzipping file:', error);
         //   }
 
-        const xhr = new XMLHttpRequest();
-        const url = 's3://matthewseffects-futuristfirmware/Futurist-V03-03.zip';
+        // const xhr = new XMLHttpRequest();
+        // const url = 's3://matthewseffects-futuristfirmware/Futurist-V03-03.zip';
 
-        xhr.open('GET', url, true);
-        xhr.responseType = 'blob';
+        // xhr.open('GET', url, true);
+        // xhr.responseType = 'blob';
 
-        xhr.onprogress = (event) => {
-        if (event.lengthComputable) {
-            const progress = (event.loaded / event.total) * 100;
-            setDownloadProgress(progress);
-        }
-        };
+        // xhr.onprogress = (event) => {
+        // if (event.lengthComputable) {
+        //     const progress = (event.loaded / event.total) * 100;
+        //     setDownloadProgress(progress);
+        // }
+        // };
 
-        xhr.onload = async () => {
-        if (xhr.status === 200) {
-            const blob = xhr.response;
-            const zip = new JSZip();
-            const zipContent = await zip.loadAsync(blob);
+        // xhr.onload = async () => {
+        // if (xhr.status === 200) {
+        //     const blob = xhr.response;
+        //     const zip = new JSZip();
+        //     const zipContent = await zip.loadAsync(blob);
 
-            // Log the filenames
-            zipContent.forEach((relativePath, file) => {
-            console.log('File:', relativePath);
-            });
-        }
-        };
+        //     // Log the filenames
+        //     zipContent.forEach((relativePath, file) => {
+        //     console.log('File:', relativePath);
+        //     });
+        // }
+        // };
 
-        xhr.onerror = () => {
-        console.error('Error downloading file');
-        };
+        // xhr.onerror = () => {
+        // console.error('Error downloading file');
+        // };
 
-        xhr.send();
-        setIsFirmwareLoaded(true);
+        // xhr.send();
+        // setIsFirmwareLoaded(true);
       };
 
     const handleUpdateFirmware = () => {
         // Send midi message to device with firmware data from state
         const messageToSend = messages.firmwareUpdateRequest.messageData;
-        const updateData = selectedUpdateFile?.stream();
+        const reader = selectedUpdateFile?.stream().getReader();
+        const updateData: number[] = [];
+
+        function push() {
+            // "done" is a Boolean and value a "Uint8Array"
+            if(reader) {
+            reader.read().then(({ done, value }) => {
+              // If there is no more data to read
+              if (done) {
+                console.log("done", done);
+                return;
+              }
+              
+              // Check chunks by logging to the console
+              console.log(done, value);
+              push();
+            });
+           }
+          }
+  
+          push();
+
         // Replace unused byte with the data from the selected update file
-        messageToSend.splice(7, 1);
+        messageToSend.splice(7, 1, ...updateData);
         if(output.current?.send) {
+            console.log(messageToSend);
             output.current.send(messageToSend);
         }
     }
@@ -469,7 +497,7 @@ const GlobalSettings: React.FC<GlobalSettingsProps> = ({ midiAccess, status }) =
             <div>
                 <Grid container spacing={2}>
                     <Grid item xs={3}>
-                    <div>
+                    <div style={{ backgroundColor: '#0f0e13', borderRadius: '3%', display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', height: '55vh', marginLeft: '5px' }}>
                         <h3>Foot Switch Settings</h3>
                         <div>
                         <span style={{ width: '100%' }}>
@@ -546,7 +574,8 @@ const GlobalSettings: React.FC<GlobalSettingsProps> = ({ midiAccess, status }) =
                     </Grid>
 
                     <Grid item xs={3}>
-                    <div>
+                    <div style={{ backgroundColor: '#0f0e13', borderRadius: '3%', display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', height: '100%', paddingLeft: '5px', paddingRight: '5px' }}>
+                        <div>
                         <h3>Display Control</h3>
                         <div>
                             <div>
@@ -561,57 +590,55 @@ const GlobalSettings: React.FC<GlobalSettingsProps> = ({ midiAccess, status }) =
                             </div>
                         <Slider id="contrast" min={1} max={10} value={Math.abs(10 - globalSettingsRes.contrast)} onChange={(event, newValue: number | number[]) => updateSetting('contrast', typeof newValue === 'number' ? newValue : newValue[0])} />
                         </div>
-                    </div>
+                        </div>
                     <div>
                         <div>
-                        <label htmlFor={"midiClockState"}>{"Midi Clock"}</label>
-                        <FormControl>
-                            <Checkbox
-                                id="midiClockState"
-                                checked={globalSettingsRes.midiClockState === 1}
-                                style={{ backgroundColor: 'gray' }}
-                                onChange={(event) => updateSetting('midiClockState', event.target.checked ? '1' : '0')}
-                            />
-                        </FormControl>
+                        <h3>Midi Clock</h3>
                         </div>
                         <div>
-                        <label htmlFor={"midiClockMsb"}>{"BPM "}</label>
                             <TextField
                                 id="midiClockMsb"
                                 disabled={globalSettingsRes.midiClockState === 0}
-                                variant='outlined'
+                                variant='standard'
                                 value={`${bpm > 0 ? bpm : ''}`}
                                 onChange={handleBpmChange}
-                                style={{ backgroundColor: 'gray', color: 'white' }}
+                                sx={{ backgroundColor: 'gray', color: 'white' }}
                                 inputProps={{
                                     placeholder: '30 - 300',
                                     type: "number",
                                     max: 300
                                 }}
                             />
+                            <FormControl>
+                                <Checkbox
+                                    id="midiClockState"
+                                    checked={globalSettingsRes.midiClockState === 1}
+                                    sx={{ borderColor: 'white' }}
+                                    onChange={(event) => updateSetting('midiClockState', event.target.checked ? '1' : '0')}
+                                />
+                            </FormControl>
                             {bpmError && <div style={{color: 'red'}}>{"Value must be between 30 and 300"}</div>}
                         </div>
+                    </div>
                     </div>
                     </Grid>
 
                     <Grid item xs={3}>
-                    <div>
-                        <span>
-                            <label htmlFor={"midiInputChannel"}>{"Midi Channel In "}</label>
+                    <div style={{ backgroundColor: '#0f0e13', borderRadius: '3%', display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', height: '100%' }}>
+                        <div>
+                        <h3>Midi Channel In</h3>
                             <FormControl>
-                                {/* <InputLabel id="midiInputChannel-label" style={{ color: 'white' }}>Midi Channel In</InputLabel> */}
                                 <Select
                                     autoWidth
                                     id="midiInputChannel"
                                     value={globalSettingsRes.midiInputChannel}
                                     onChange={(event) => updateSetting('midiInputChannel', event.target.value)}
-                                    style={{ backgroundColor: 'gray', color: 'white', height: '2rem', width: '10rem', marginBottom: '10px', marginLeft: '10px' }}
+                                    style={{ backgroundColor: 'gray', color: 'white', height: '2rem', width: '10rem' }}
                                     >
                                     {midiInputChannelOptions.map((option, i) => <MenuItem key={`midiInOption${i+1}`} value={i}>{option}</MenuItem>)}
                                 </Select>
                             </FormControl>
-                        </span>
-                    </div>
+                        </div>
                     <div>
                         <h3>Control Jack In</h3>
                         <Button variant={globalSettingsRes.controlJackMode === 1 ? 'contained' : 'outlined' }
@@ -620,23 +647,23 @@ const GlobalSettings: React.FC<GlobalSettingsProps> = ({ midiAccess, status }) =
                     </div>
                     <div>
                         <h3>Utility Jack</h3>
-                        <Button variant={globalSettingsRes.utilityJackPolarity === 1 ? 'contained' : 'outlined' }
+                        <Button sx={{ width: '80%' }} variant={globalSettingsRes.utilityJackPolarity === 1 ? 'contained' : 'outlined' }
                             onClick={() => updateSetting('utilityJackPolarity', globalSettingsRes.utilityJackPolarity === 0 ? '1' : '0')}
                         >{globalSettingsRes.utilityJackPolarity === 1 ? 'Normally Open (NO)' : 'Normally Closed (NC)'}</Button>
-                        <Button variant={globalSettingsRes.utilityJackMode === 0 ? 'contained' : 'outlined' } sx={{ marginTop: '0.5rem' }}
+                        <Button sx={{ marginTop: '0.5rem', width: '80%' }} variant={globalSettingsRes.utilityJackMode === 0 ? 'contained' : 'outlined' }
                             onClick={() => updateSetting('utilityJackMode', globalSettingsRes.utilityJackMode === 0 ? '1' : '0')}
                         >{globalSettingsRes.utilityJackMode === 0 ? 'Momentary' : 'Latching'}</Button>
+                    </div>
                     </div>
                     </Grid>
 
                     <Grid item xs={3}>
-                    <div>
+                    <div style={{ backgroundColor: '#0f0e13', borderRadius: '3%', display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', height: '100%', marginRight: '5px' }}>
+                        <div>
                         <h3>External Foot Switch Settings</h3>
                         <div>
                         <span>
-                            {/* <label htmlFor={"sw5"}>{"A"}</label> */}
                             <FormControl>
-                                {/* <InputLabel id="sw5-label" style={{ color: 'white' }}>Function A</InputLabel> */}
                                 <Select
                                     autoWidth
                                     id="sw5"
@@ -652,9 +679,7 @@ const GlobalSettings: React.FC<GlobalSettingsProps> = ({ midiAccess, status }) =
                         
                         <div>
                         <span>
-                            {/* <label htmlFor={"sw6"}>{"B"}</label> */}
                             <FormControl>
-                                {/* <InputLabel id="sw6-label" style={{ color: 'white' }}>Function B</InputLabel> */}
                                 <Select
                                     autoWidth
                                     id="sw6"
@@ -670,9 +695,7 @@ const GlobalSettings: React.FC<GlobalSettingsProps> = ({ midiAccess, status }) =
                         
                         <div>
                         <span>
-                            {/* <label htmlFor={"sw7"}>{"C"}</label> */}
                             <FormControl>
-                                {/* <InputLabel id="sw7-label" style={{ color: 'white' }}>Function A</InputLabel> */}
                                 <Select
                                     autoWidth
                                     id="sw7"
@@ -687,8 +710,9 @@ const GlobalSettings: React.FC<GlobalSettingsProps> = ({ midiAccess, status }) =
                         </div>
                     </div>
                     <div style={{ paddingTop: '1rem' }}>
-                        <Button onClick={handleUpdateFirmwareVersion} style={{ width: '100%' }} variant='outlined'>Update Firmware</Button>
+                        <Button onClick={handleUpdateFirmwareVersion} style={{ width: '80%' }} variant='outlined'>Update Firmware</Button>
                     </div>
+                    </div> 
                     </Grid>
                     <Modal open={firmwareModalOpen}>
                         <Box sx={modalStyle}>
@@ -696,26 +720,26 @@ const GlobalSettings: React.FC<GlobalSettingsProps> = ({ midiAccess, status }) =
                             Update Firmware
                         </h2>
                         <Divider />
-                        <div style={{ paddingTop: '1rem' }}>
-                            <Button onClick={handleUpdateFromFile} style={{ width: '50%' }}>Update from File</Button>
-                            <Button onClick={handleUpdateFromWeb} style={{ width: '50%' }}>Update from Web</Button>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', paddingTop: '1rem' }}>
+                            <Button variant='contained' onClick={handleUpdateFromFile} sx={{ width: '50%', mr: '5px' }}>Update from File</Button>
+                            <Button variant='contained' onClick={handleUpdateFromWeb} sx={{ width: '50%' }}>Update from Web</Button>
                         </div>
                         <div id="modal-modal-description">
                             <p>{`Installed Firmware: ${installedFirmwareVersion}`}</p>
-                            <p>{`File Firmware: ${fileFirmwareVersion}`}</p>
-                            {selectedUpdateFile && <div>Selected File: {selectedUpdateFile.name}</div>}
+                            <p>{`File Firmware: ${selectedUpdateFile?.name ? formatFilename(selectedUpdateFile.name) : 'Not Selected'}`}</p>
                             <input
                                 id="fileInput"
                                 type="file"
+                                accept='.syx'
                                 style={{ display: 'none' }}
                                 onChange={handleFileChange}
                             />
                         </div>
                         <Box><ReactMarkdown children={markdownContent}></ReactMarkdown></Box>
                         <LinearProgress variant='determinate' value={downloadProgress} />
-                        <div style={{ paddingTop: '1rem' }}>
-                            <Button onClick={() => setFirmwareModalOpen(false)} style={{ width: '50%' }}>Cancel</Button>
-                            <Button disabled={!isFirmwareLoaded} onClick={handleUpdateFirmware} style={{ width: '50%' }}>Update</Button>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', paddingTop: '1rem' }}>
+                            <Button variant='contained' onClick={() => setFirmwareModalOpen(false)} sx={{ width: '50%', mr: '5px' }}>Cancel</Button>
+                            <Button variant='contained' disabled={!isFirmwareLoaded} onClick={handleUpdateFirmware} sx={{ width: '50%' }}>Update</Button>
                         </div>
                         </Box>
                     </Modal>

@@ -118,7 +118,7 @@ const App: React.FC = () => {
           </p>
         </Box>
       </Modal>
-    <Grid item xs={3}>
+    <Grid item xs={2}>
       <LeftSideBar userBanks={presets} />
     </Grid>
     <Grid item xs={13}>
