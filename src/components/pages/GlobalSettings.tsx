@@ -241,7 +241,8 @@ const GlobalSettings: React.FC<GlobalSettingsProps> = ({ midiAccess, status }) =
         // 4. Store download data in state
 
         try {
-            const awsResponse = await axios.get('s3://matthewseffects-futuristfirmware/Futurist-V03-03.zip');
+            // const awsResponse = await axios.get('s3://matthewseffects-futuristfirmware/Futurist-V03-03.zip');
+            const awsResponse = await axios.get('https://matthewseffects-futuristfirmware.s3.us-west-2.amazonaws.com/Futurist-V03-02.zip', { withCredentials: false });
             console.log('Response Type: ', typeof awsResponse.data);
         }
         catch (error) {
@@ -334,35 +335,57 @@ const GlobalSettings: React.FC<GlobalSettingsProps> = ({ midiAccess, status }) =
 
     const handleUpdateFirmware = () => {
         // Send midi message to device with firmware data from state
-        const messageToSend = messages.firmwareUpdateRequest.messageData;
+        let messagesToSend: number[][] = [];
+        let tempArray: number[] = [240];
         const reader = selectedUpdateFile?.stream().getReader();
-        const updateData: number[] = [];
 
-        function push() {
+        const push = () => {
             // "done" is a Boolean and value a "Uint8Array"
             if(reader) {
             reader.read().then(({ done, value }) => {
               // If there is no more data to read
               if (done) {
                 console.log("done", done);
+                // Iterate over messagesToSend and send each one
+                if(output.current?.send) {
+                    messagesToSend.forEach((message, i) => {
+                        // console.log('Mess to send: ', message)
+                        // output.current?.send(message);
+                    setTimeout(() => {
+                        console.log('Mess to send: ', message);
+                        output.current?.send(message);
+                      }, i * 50); // 500ms delay for each subsequent array
+                    });
+                }
+                    
                 return;
               }
               
-              // Check chunks by logging to the console
               console.log(done, value);
+              value.forEach(byte => {
+                // Separate each sysex message for the series sent as firmware update by checking for Start of Message byte
+                if (byte === 240) {
+                    if (tempArray.length > 1) {
+                      // TODO: Extract midi message sending logic into utility
+                      // Send messageToSend
+                      messagesToSend.push(tempArray);
+                      tempArray = [240];
+                    }
+                  } else {
+                    tempArray.push(byte);
+                  }
+                });
+            
+                if (tempArray.length > 1) {
+                    messagesToSend.push(tempArray);
+                }
+              
               push();
             });
            }
           }
   
           push();
-
-        // Replace unused byte with the data from the selected update file
-        messageToSend.splice(7, 1, ...updateData);
-        if(output.current?.send) {
-            console.log(messageToSend);
-            output.current.send(messageToSend);
-        }
     }
     
     const updateSetting = (setting: string, newValue: string | number) => {
