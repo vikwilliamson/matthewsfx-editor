@@ -21,6 +21,8 @@ import { FirmwareVersionResponse, GlobalSettingsResponse } from '../../types';
 import { identifyOutput } from '../../utilities/identifyOutput';
 import { commandBytes, messages } from '../../assets/dictionary';
 import axios from 'axios';
+import FormControlLabel from '@mui/material/FormControlLabel';
+import Switch from '@mui/material/Switch';
 
 
 type GlobalSettingsProps = {
@@ -609,14 +611,18 @@ const GlobalSettings: React.FC<GlobalSettingsProps> = ({ midiAccess, status }) =
                                     max: 300
                                 }}
                             />
-                            <FormControl>
-                                <Checkbox
-                                    id="midiClockState"
-                                    checked={globalSettingsRes.midiClockState === 1}
-                                    sx={{ borderColor: 'white' }}
-                                    onChange={(event) => updateSetting('midiClockState', event.target.checked ? '1' : '0')}
-                                />
-                            </FormControl>
+                                <FormControlLabel
+                                            control={
+                                            <Switch
+                                                checked={globalSettingsRes.midiClockState === 1}
+                                                onChange={(event) => updateSetting('midiClockState', event.target.checked ? '1' : '0')}
+                                                id="midiClockState"
+                                                color="primary"
+                                            />
+                                            }
+                                            label={globalSettingsRes.midiClockState ? "On" : "Off"}
+                                            sx={{ marginLeft: '10px' }}
+                                    />
                             {bpmError && <div style={{color: 'red'}}>{"Value must be between 30 and 300"}</div>}
                         </div>
                     </div>
