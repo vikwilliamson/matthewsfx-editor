@@ -72,9 +72,9 @@ const midiInputChannelOptions = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '1
 
 const GlobalSettings: React.FC<GlobalSettingsProps> = ({ midiAccess, status }) => {
     const globalSettingsInitialState: GlobalSettingsResponse = {
-        mfxId1: 0,
-        mfxId2: 0,
-        mfxId3: 0,
+        mfxId1: 0x00,
+        mfxId2: 0x02,
+        mfxId3: 0x30,
         productIdLsb: 0,
         productIdMsb: 0,
         commandByte: 0,
@@ -465,6 +465,7 @@ const GlobalSettings: React.FC<GlobalSettingsProps> = ({ midiAccess, status }) =
             messageToWrite.push(0xf7);
             // Set command byte to "global settings write"
             messageToWrite[6] = 0x22;
+            console.log('Mess to write: ', messageToWrite);
             output.current?.send(messageToWrite);
         }
     }
@@ -482,9 +483,10 @@ const GlobalSettings: React.FC<GlobalSettingsProps> = ({ midiAccess, status }) =
               switch(responseType) {
                 case 'globalSettingsResponse': 
                   const gSResponse: GlobalSettingsResponse = {
-                  mfxId1: event.data[1],
-                  mfxId2: event.data[2],
-                  mfxId3: event.data[3],
+                  // MFX IDs should remain the same
+                  mfxId1: globalSettingsInitialState.mfxId1,
+                  mfxId2: globalSettingsInitialState.mfxId2,
+                  mfxId3: globalSettingsInitialState.mfxId3,
                   productIdLsb: event.data[4],
                   productIdMsb: event.data[5],
                   commandByte: event.data[6],
@@ -511,9 +513,9 @@ const GlobalSettings: React.FC<GlobalSettingsProps> = ({ midiAccess, status }) =
                 break;
               case 'firmwareVersionResponse':
                 const fvResponse: FirmwareVersionResponse = {
-                mfxId1: event.data[1],
-                mfxId2: event.data[2],
-                mfxId3: event.data[3],
+                mfxId1: 0x00,
+                mfxId2: 0x02,
+                mfxId3: 0x30,
                 productIdMsb: event.data[4],
                 productIdLsb: event.data[5],
                 commandByte: event.data[6],
@@ -539,7 +541,9 @@ const GlobalSettings: React.FC<GlobalSettingsProps> = ({ midiAccess, status }) =
 
     useEffect(() => {
         // Retrieve Global Settings on page load
+        console.log('Current output: ', output.current)
         if(output.current?.send) {
+            console.log('Initial GS Mess to send: ', messages.globalSettingsRequest.messageData)
             output.current.send(messages.globalSettingsRequest.messageData);
         }
     }, [])
