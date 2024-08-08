@@ -27,6 +27,7 @@ import { commandBytes, messages } from '../../assets/dictionary';
 type GlobalSettingsProps = {
     midiAccess: WebMidi.MIDIAccess | null;
     status: string;
+    deviceSettings: GlobalSettingsResponse;
 }
 
 interface MidiOutputRef {
@@ -70,34 +71,7 @@ const modalStyle = {
 const footswitchFunctions = ['Activate Preset', 'Bank Up', 'Bank Down', 'Preset Up', 'Preset Down', 'Tap: Midi Clock', 'Tap: Utility + Midi Clock'];
 const midiInputChannelOptions = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11', '12', '13', '14', '15', '16', 'Off'];
 
-const GlobalSettings: React.FC<GlobalSettingsProps> = ({ midiAccess, status }) => {
-    const globalSettingsInitialState: GlobalSettingsResponse = {
-        mfxId1: 0x00,
-        mfxId2: 0x02,
-        mfxId3: 0x30,
-        productIdLsb: 0,
-        productIdMsb: 0,
-        commandByte: 0,
-        tapStatus: 127,
-        tapStatusMode: 0,
-        switch1Function: 0,
-        switch2Function: 0,
-        switch3Function: 0,
-        switch4Function: 0,
-        switch5Function: 0,
-        switch6Function: 0,
-        switch7Function: 0,
-        contrast: 0,
-        brightness: 0,
-        controlJackMode: 1,
-        midiClockState: 0,
-        midiClockLsb: 0,
-        midiClockMsb: 0,
-        utilityJackPolarity: 0,
-        utilityJackMode: 1,
-        midiInputChannel: 0,
-    };
-
+const GlobalSettings: React.FC<GlobalSettingsProps> = ({ midiAccess, status, deviceSettings }) => {
     const footswitchDropdownValuesInitialState = {
         switch1Function: footswitchFunctions[0],
         switch2Function: footswitchFunctions[0],
@@ -108,7 +82,7 @@ const GlobalSettings: React.FC<GlobalSettingsProps> = ({ midiAccess, status }) =
         switch7Function: footswitchFunctions[0],
     }
 
-    const [globalSettingsRes, setGlobalSettingsRes] = useState<GlobalSettingsResponse>(globalSettingsInitialState);
+    const [globalSettingsRes, setGlobalSettingsRes] = useState<GlobalSettingsResponse>(deviceSettings);
 
     const [bpm, setBpm] = useState<number>(0);
     const [bpmError, setBpmError] = useState<boolean>(false);
@@ -466,7 +440,9 @@ const GlobalSettings: React.FC<GlobalSettingsProps> = ({ midiAccess, status }) =
             // Set command byte to "global settings write"
             messageToWrite[6] = 0x22;
             console.log('Mess to write: ', messageToWrite);
-            output.current?.send(messageToWrite);
+            if(output.current?.send) {
+                output.current?.send(messageToWrite);
+            }
         }
     }
 
@@ -483,10 +459,11 @@ const GlobalSettings: React.FC<GlobalSettingsProps> = ({ midiAccess, status }) =
               switch(responseType) {
                 case 'globalSettingsResponse': 
                   const gSResponse: GlobalSettingsResponse = {
-                  // MFX IDs should remain the same
-                  mfxId1: globalSettingsInitialState.mfxId1,
-                  mfxId2: globalSettingsInitialState.mfxId2,
-                  mfxId3: globalSettingsInitialState.mfxId3,
+                  // MFX IDs should be constant
+                  // TODO: Create constants for the mfx ids and import them into this file
+                  mfxId1: 0x00,
+                  mfxId2: 0x02,
+                  mfxId3: 0x30,
                   productIdLsb: event.data[4],
                   productIdMsb: event.data[5],
                   commandByte: event.data[6],
@@ -539,14 +516,34 @@ const GlobalSettings: React.FC<GlobalSettingsProps> = ({ midiAccess, status }) =
         }
     }, [])
 
-    useEffect(() => {
-        // Retrieve Global Settings on page load
-        console.log('Current output: ', output.current)
-        if(output.current?.send) {
-            console.log('Initial GS Mess to send: ', messages.globalSettingsRequest.messageData)
-            output.current.send(messages.globalSettingsRequest.messageData);
-        }
-    }, [])
+    // useEffect(() => {
+    //     const sendInitialMessage = async () => {
+    //         try {
+    //           if (output.current?.state === 'connected' && output.current?.connection !== 'open') {
+    //             await output.current.open();
+    //             if(output.current?.send) {
+    //                 console.log('Initial GS Mess to send: ', messages.globalSettingsRequest.messageData)
+    //                 output.current.send(messages.globalSettingsRequest.messageData);
+    //             }   
+    //           }    
+    //         } catch (error) {
+    //           console.error('Failed to send MIDI message', error);
+    //         }
+    //       };
+
+    //     //   sendInitialMessage();
+
+    //     // Retrieve Global Settings on page load
+    //     // console.log('Current output: ', output.current)
+    //     // if(output.current?.send) {
+    //     //     console.log('Initial GS Mess to send: ', messages.globalSettingsRequest.messageData)
+    //     //     output.current.send(messages.globalSettingsRequest.messageData);
+    //     // }
+    // }, [])
+
+    // if(!output.current || output.current.state === 'disconnected' || output.current.connection !== 'open') {
+    //     return <CircularProgress />
+    // }
 
     return (
         <>
