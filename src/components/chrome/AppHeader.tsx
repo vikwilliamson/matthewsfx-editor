@@ -10,14 +10,14 @@ import Tabs from '@mui/material/Tabs';
 import Tab from '@mui/material/Tab';
 // ASSETS/DATA
 import logo  from '../../assets/V2_SMOOTH_ME_LOGO_White.png'
-import { EditorTab, SetStateAction } from '../../types';
+import { EditorTab } from '../../types';
 
 
 type AppHeaderProps = {
     currentTab: EditorTab;
     device: WebMidi.MIDIInput | null;
     setDevice: (event: SelectChangeEvent) => void;
-    handleSelectTab: SetStateAction<EditorTab>;
+    handleSelectTab: (tab: EditorTab) => void;
     midiDevices: WebMidi.MIDIInput[];
     status: string;
 }
