@@ -24,6 +24,12 @@ export type FirmwareVersionResponse = {
     minorVersion1: number;
 }
 
+export type GlobalSettingsProps = {
+    midiAccess: WebMidi.MIDIAccess | null;
+    status: string;
+    deviceSettings: GlobalSettingsResponse;
+}
+
 export type GlobalSettingsResponse = {
     [key: string]: number;
     mfxId1: number;
@@ -51,10 +57,15 @@ export type GlobalSettingsResponse = {
     utilityJackMode: number;
     midiInputChannel: number;
 }
+
+export interface MidiOutputRef {
+    current: WebMidi.MIDIOutput | undefined;
+  }
   
 export type Preset = {
     presetName: string;
     presetDescription?: string;
     messages: Array<Array<string>>;
 }
+
 export type SetStateAction<T> = (value: T | ((prev: T) => T)) => void;

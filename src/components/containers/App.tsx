@@ -12,10 +12,11 @@ import { SelectChangeEvent } from '@mui/material/Select';
 // STYLES
 import '../../styles/App.css';
 // ASSETS/DATA
-import { Bank, EditorTab, FirmwareVersionResponse, GlobalSettingsResponse } from '../../types';
+import { Bank, EditorTab, GlobalSettingsResponse } from '../../types';
 import { identifyOutput } from '../../utilities/identifyOutput';
 import { checkIfSysex } from '../../utilities/checkIfSysex';
 import { commandBytes, messages } from '../../assets/dictionary';
+import { mfxId1, mfxId2, mfxId3 } from '../../utilities/constants';
 
 const globalSettingsInitialState: GlobalSettingsResponse = {
   mfxId1: 0x00,
@@ -103,15 +104,12 @@ const App: React.FC = () => {
   const requestGlobalSettings = async () => {
     const outputToUse = identifyOutput(midiAccessObject);
     await outputToUse?.open();
-    console.log('Request Global Settings output: ', outputToUse)
     const devices = midiAccessObject?.inputs.values();
-    console.log('Devices: ', devices)
     outputToUse?.send(messages.globalSettingsRequest.messageData);
   }
 
   const handleSelectTab = (tab: EditorTab) => {
     if(tab === EditorTab.Settings) {
-      console.log('Making Global Settings request!');
       requestGlobalSettings();
     }
 
@@ -121,7 +119,6 @@ const App: React.FC = () => {
 
   useEffect(() => {
     const handleMidiMessage = (event: WebMidi.MIDIMessageEvent) => {
-      console.log('Midi Message Received: ', event.data);
       // TODO: Write function for parsing based on the response that was sent
       if (checkIfSysex(event.data)) {
         // Parse response into the appropriate object
@@ -133,10 +130,9 @@ const App: React.FC = () => {
           case 'globalSettingsResponse': 
             const gSResponse: GlobalSettingsResponse = {
             // MFX IDs should be constant
-            // TODO: Create constants for the mfx ids and import them into this file
-            mfxId1: 0x00,
-            mfxId2: 0x02,
-            mfxId3: 0x30,
+            mfxId1: mfxId1,
+            mfxId2: mfxId2,
+            mfxId3: mfxId3,
             productIdLsb: event.data[4],
             productIdMsb: event.data[5],
             commandByte: event.data[6],
@@ -159,7 +155,6 @@ const App: React.FC = () => {
             utilityJackMode: event.data[23],
             midiInputChannel: event.data[24],
           };
-          console.log('Device Settings Response: ', gSResponse);
           setDeviceGlobalSettings(gSResponse);
           break;
         case 'firmwareVersionResponse':
@@ -196,7 +191,6 @@ const App: React.FC = () => {
           for (const input of devices) {
             if(input.name === 'The Futurist') {
               setDeviceStatus('connected');
-              // input.onmidimessage = handleMidiMessage;
             }
             break;
           }

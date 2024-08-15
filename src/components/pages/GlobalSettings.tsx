@@ -19,38 +19,14 @@ import FormControlLabel from '@mui/material/FormControlLabel';
 import Switch from '@mui/material/Switch';
 // DATA/UTILS
 import { checkIfSysex } from '../../utilities/checkIfSysex';
-import { FirmwareVersionResponse, GlobalSettingsResponse } from '../../types';
+import { FirmwareVersionResponse, GlobalSettingsProps, GlobalSettingsResponse, MidiOutputRef } from '../../types';
 import { identifyOutput } from '../../utilities/identifyOutput';
 import { commandBytes, messages } from '../../assets/dictionary';
-
-
-type GlobalSettingsProps = {
-    midiAccess: WebMidi.MIDIAccess | null;
-    status: string;
-    deviceSettings: GlobalSettingsResponse;
-}
-
-interface MidiOutputRef {
-  current: WebMidi.MIDIOutput | undefined;
-}
-
-const AWS_ACCESS_KEY = 'AKIA4INYV4MFL7TXGS6F';
-const AWS_SECRET = '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';
-const messageDelay = 100;
-const markdownInstructions = 
-`Firmware Update
-======================================
-
-
-
- **Directions**
-  * Select "Update From File" to select a specific local update file **OR**
-  * Select "Update From The Web" to update to the latest version
-  * The release notes will appear here
-  * To update, press the "Update" button
-  * To quit, press the "Cancel" button
-
-*If no release notes are displayed, no release notes were found for this release.*`
+import { AWS_ACCESS_KEY, AWS_SECRET, footswitchFunctions, markdownInstructions, messageDelay, mfxId1, mfxId2, mfxId3, midiInputChannelOptions } from '../../utilities/constants';
+import { debounce } from '../../utilities/debounce';
+import { parseInstalledFirmwareVersion } from '../../utilities/firmwareVersionParsing';
+import { calculateMidiClockValues } from '../../utilities/calculateMidiClockValues';
+import { splitSysExMessages } from '../../utilities/splitSysExMessages.ts';
 
 const modalStyle = {
     position: 'absolute' as 'absolute',
@@ -66,10 +42,6 @@ const modalStyle = {
     boxShadow: 24,
     p: 4,
   };
-
-// TODO - make this an iterable type/enum and import it and use it that way instead
-const footswitchFunctions = ['Activate Preset', 'Bank Up', 'Bank Down', 'Preset Up', 'Preset Down', 'Tap: Midi Clock', 'Tap: Utility + Midi Clock'];
-const midiInputChannelOptions = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11', '12', '13', '14', '15', '16', 'Off'];
 
 const GlobalSettings: React.FC<GlobalSettingsProps> = ({ midiAccess, status, deviceSettings }) => {
     const footswitchDropdownValuesInitialState = {
@@ -106,45 +78,10 @@ const GlobalSettings: React.FC<GlobalSettingsProps> = ({ midiAccess, status, dev
 
     let output: MidiOutputRef = useRef({} as WebMidi.MIDIOutput);
 
-    const debounce = (func: Function, delay: number) => {
-        let timeoutId: NodeJS.Timeout;
-        return (...args: any[]) => {
-          clearTimeout(timeoutId);
-          timeoutId = setTimeout(() => {
-            func(...args);
-          }, delay);
-        };
-      };
-
-    const calculateMidiClockValues = (tempo: number) => {
-        const midiClockMSB = Math.floor(tempo / 128);
-        const midiClockLSB = tempo % 128;
-
-        return { LSB: midiClockLSB, MSB: midiClockMSB };
-    };
-
-    const retrieveAsciiCharacter = (value: number) => {
-        try {   
-          // Check if the value is within the valid ASCII range (32 to 126)
-          if (value < 32 || value > 126) {
-            throw new Error('Invalid ASCII value');
-          }
-          
-          // Convert integer to ASCII character
-          const charCode = parseInt(String(value), 10);
-          const asciiChar = String.fromCharCode(charCode);
-          
-          return asciiChar;
-        } catch (error) {
-          console.error('Error converting hexadecimal to ASCII:', error);
-        }
-      };
-
     const validateBpm = (value: string) => {
         const valueAsNum = parseInt(value);
         // Validation for Midi Clock BPM
         if(valueAsNum < 30 && valueAsNum !== 0) {
-            // TODO - Create detailed error handling around this
             setBpmError(true);
             updateSetting('midiClockMsb', 30);
         }
@@ -278,12 +215,6 @@ const GlobalSettings: React.FC<GlobalSettingsProps> = ({ midiAccess, status, dev
         setFirmwareModalOpen(true);
     }
 
-    const parseInstalledFirmwareVersion = (response: FirmwareVersionResponse) => {
-        const { majorVersion1, majorVersion10, minorVersion1, minorVersion10 } = response;
-        const version = `${majorVersion10 === 32 ? '': retrieveAsciiCharacter(majorVersion10)}${retrieveAsciiCharacter(majorVersion1)}.${retrieveAsciiCharacter(minorVersion10)}${minorVersion1 === 32 ? '': retrieveAsciiCharacter(minorVersion1)}`;
-        setInstalledFirmwareVersion(version);
-    }
-
     const handleFileChange = (event: ChangeEvent<HTMLInputElement>) => {
         const file = event.target.files?.[0];
         if (file) {
@@ -337,21 +268,6 @@ const GlobalSettings: React.FC<GlobalSettingsProps> = ({ midiAccess, status, dev
         setSelectedUpdateFile(null);
         setSelectedCloudUpdateFile('');
         setSelectedLocalUpdateFile('Not Selected');
-    }
-
-    const splitSysExMessages = (data: Uint8Array) => {
-        const messages = [];
-        let start = 0;
-
-        while (start < data.length) {
-            let end = data.indexOf(0xF7, start) + 1;
-            if (end === 0) break; // No more end markers found
-            const message = data.slice(start, end);
-            messages.push(Array.from(message));
-            start = end;
-        }
-
-        return messages;
     }
 
     const sendSysExData = (selectedOutput: WebMidi.MIDIOutput, data: Uint8Array, delay: number) => {
@@ -460,10 +376,9 @@ const GlobalSettings: React.FC<GlobalSettingsProps> = ({ midiAccess, status, dev
                 case 'globalSettingsResponse': 
                   const gSResponse: GlobalSettingsResponse = {
                   // MFX IDs should be constant
-                  // TODO: Create constants for the mfx ids and import them into this file
-                  mfxId1: 0x00,
-                  mfxId2: 0x02,
-                  mfxId3: 0x30,
+                  mfxId1: mfxId1,
+                  mfxId2: mfxId2,
+                  mfxId3: mfxId3,
                   productIdLsb: event.data[4],
                   productIdMsb: event.data[5],
                   commandByte: event.data[6],
@@ -490,9 +405,9 @@ const GlobalSettings: React.FC<GlobalSettingsProps> = ({ midiAccess, status, dev
                 break;
               case 'firmwareVersionResponse':
                 const fvResponse: FirmwareVersionResponse = {
-                mfxId1: 0x00,
-                mfxId2: 0x02,
-                mfxId3: 0x30,
+                mfxId1: mfxId1,
+                mfxId2: mfxId2,
+                mfxId3: mfxId3,
                 productIdMsb: event.data[4],
                 productIdLsb: event.data[5],
                 commandByte: event.data[6],
@@ -501,7 +416,7 @@ const GlobalSettings: React.FC<GlobalSettingsProps> = ({ midiAccess, status, dev
                 minorVersion10: event.data[9],
                 minorVersion1: event.data[10]
                 };
-                parseInstalledFirmwareVersion(fvResponse);
+                setInstalledFirmwareVersion(parseInstalledFirmwareVersion(fvResponse));
                 break;
             default:
               }
@@ -557,9 +472,7 @@ const GlobalSettings: React.FC<GlobalSettingsProps> = ({ midiAccess, status, dev
                         <h3>Foot Switch Settings</h3>
                         <div>
                         <span style={{ width: '100%' }}>
-                            {/* <label htmlFor={"sw1"}>{"1"}</label> */}
                             <FormControl>
-                                {/* <InputLabel id="sw1-label" style={{ color: 'white' }}>Function 1</InputLabel> */}
                                 <Select
                                     autoWidth
                                     id="sw1"
@@ -575,9 +488,7 @@ const GlobalSettings: React.FC<GlobalSettingsProps> = ({ midiAccess, status, dev
                         
                         <div>
                         <span>
-                            {/* <label htmlFor={"sw2"}>{"2"}</label> */}
                             <FormControl>
-                                {/* <InputLabel id="sw2-label" style={{ color: 'white' }}>Function 2</InputLabel> */}
                                 <Select
                                     autoWidth
                                     id="sw2"
@@ -593,9 +504,7 @@ const GlobalSettings: React.FC<GlobalSettingsProps> = ({ midiAccess, status, dev
                         
                         <div>
                         <span>
-                            {/* <label htmlFor={"sw3"}>{"3"}</label> */}
                             <FormControl>
-                                {/* <InputLabel id="sw3-label" style={{ color: 'white' }}>Function 3</InputLabel> */}
                                 <Select
                                     autoWidth
                                     id="sw3"
@@ -611,9 +520,7 @@ const GlobalSettings: React.FC<GlobalSettingsProps> = ({ midiAccess, status, dev
                         
                         <div>
                         <span>
-                            {/* <label htmlFor={"sw4"}>{"4"}</label> */}
                             <FormControl>
-                                {/* <InputLabel id="sw4-label" style={{ color: 'white' }}>Function 4</InputLabel> */}
                                 <Select
                                     autoWidth
                                     id="sw4"
@@ -808,7 +715,6 @@ const GlobalSettings: React.FC<GlobalSettingsProps> = ({ midiAccess, status, dev
                                 </span>
                         </FormControl>)}                                  
                         </div>
-                        {/* TODO: Avoid using dangerouslySetInnerHTML */}
                         <Box sx={{ overflow: 'hidden' }}><div dangerouslySetInnerHTML={{ __html: markdownContent }}/></Box>
                         <LinearProgress variant='determinate' value={downloadProgress} sx={{ display: showProgressBar ? 'inherit' : 'none' }} />
                         <div style={{ display: 'flex', justifyContent: 'space-between', paddingTop: '1rem' }}>

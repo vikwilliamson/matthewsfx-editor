@@ -1,4 +1,6 @@
+// GLOBALS
 import { useState } from "react";
+// COMPONENTS
 import Box from "@mui/material/Box";
 import FormControl from "@mui/material/FormControl";
 import Select from "@mui/material/Select";
@@ -9,13 +11,14 @@ import Tabs from "@mui/material/Tabs";
 import Tab from "@mui/material/Tab";
 import Switch from "@mui/material/Switch";
 import FormControlLabel from "@mui/material/FormControlLabel";
+// DATA/UTILS
+import { expressionChannelOptions, utilityModeOptions } from "../../utilities/constants";
 
 const PresetEditor: React.FC = () => {
     let bankOptions = new Array(30).fill('').map((option, i) => `Bank ${i+1}`);
     let presetOptions = new Array(7).fill('').map((option, i) => `Preset ${i+1}`);
-    const expressionChannelOptions = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16];
-    // TODO: Refactor below into enum
-    const utilityModeOptions = ['Tap', 'Switch: tip', 'Switch: ring', 'Switch: both'];
+    // TODO: compare these channel options to the ones for midi channel input on global settings page
+    // If they are similar then export the number array from constants.ts
 
     const [selectedBank, setSelectedBank] = useState<string>('0');
     const [selectedPreset, setSelectedPreset] = useState<string>('0');
@@ -43,7 +46,6 @@ const PresetEditor: React.FC = () => {
             <Box sx={{ backgroundColor: '#0f0e13', borderRadius: '3%', display: 'flex', flexDirection: 'column', height: '55vh', marginLeft: '5px', marginRight: '5px', paddingTop: '10px' }}>
                 <Box sx={{ flexDirection: 'row', justifyContent: 'space-evenly' }}>
                 <FormControl>
-                    {/* <InputLabel id="bank-select-label" style={{ color: 'white' }}>Bank Select</InputLabel> */}
                     <Select
                         autoWidth
                         id="bank-select"
@@ -56,7 +58,6 @@ const PresetEditor: React.FC = () => {
                     </Select>
                 </FormControl>
                 <FormControl>
-                    {/* <InputLabel id="preset-select-label" style={{ color: 'white' }}>Preset Select</InputLabel> */}
                     <Select
                         autoWidth
                         id="preset-select"
@@ -89,7 +90,6 @@ const PresetEditor: React.FC = () => {
                 </Box>
                 <Box sx={{ display: 'flex', flexDirection: 'row' }}>
                     <Box id='preset-messages' sx={{ width: '70%' }}>
-                        {/* TODO: Refactor to use .map() */}
                         <Tabs value={currentPresetMessage} onChange={(event, value) => setCurrentPresetMessage(value)} textColor='inherit' variant='scrollable'>
                             <Tab label={1} value={1} defaultChecked />
                             <Tab label={2} value={2} />
@@ -172,7 +172,6 @@ const PresetEditor: React.FC = () => {
                                 </span>
                                 <span>Mode
                                     <FormControl>
-                                        {/* <InputLabel id="preset-select-label" style={{ color: 'white' }}>Preset Select</InputLabel> */}
                                         <Select
                                             autoWidth
                                             disabled={!utilityStatus}
