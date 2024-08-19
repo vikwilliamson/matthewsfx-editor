@@ -1,7 +1,8 @@
 // GLOBALS
 import React, { ChangeEvent, useEffect, useRef, useState } from 'react';
-import ReactMarkdown from 'react-markdown';
 import JSZip from 'jszip';
+import * as AWS from 'aws-sdk';
+import { marked } from 'marked';
 // COMPONENTS
 import Box from '@mui/material/Box';
 import Divider from '@mui/material/Divider';
@@ -9,28 +10,23 @@ import Grid from '@mui/material/Grid';
 import LinearProgress from '@mui/material/LinearProgress';
 import Modal from '@mui/material/Modal';
 import FormControl from '@mui/material/FormControl';
-import Select from '@mui/material/Select';
+import Select, { SelectChangeEvent } from '@mui/material/Select';
 import MenuItem from '@mui/material/MenuItem';
-import Checkbox from '@mui/material/Checkbox';
 import Button from '@mui/material/Button';
 import TextField from '@mui/material/TextField';
 import Slider from '@mui/material/Slider';
+import FormControlLabel from '@mui/material/FormControlLabel';
+import Switch from '@mui/material/Switch';
 // DATA/UTILS
 import { checkIfSysex } from '../../utilities/checkIfSysex';
-import { FirmwareVersionResponse, GlobalSettingsResponse } from '../../types';
+import { FirmwareVersionResponse, GlobalSettingsProps, GlobalSettingsResponse, MidiOutputRef } from '../../types';
 import { identifyOutput } from '../../utilities/identifyOutput';
 import { commandBytes, messages } from '../../assets/dictionary';
-import axios from 'axios';
-
-
-type GlobalSettingsProps = {
-    midiAccess: WebMidi.MIDIAccess | null;
-    status: string;
-}
-
-interface MidiOutputRef {
-  current: WebMidi.MIDIOutput | undefined;
-}
+import { AWS_ACCESS_KEY, AWS_SECRET, footswitchFunctions, markdownInstructions, messageDelay, mfxId1, mfxId2, mfxId3, midiInputChannelOptions } from '../../utilities/constants';
+import { debounce } from '../../utilities/debounce';
+import { parseInstalledFirmwareVersion } from '../../utilities/firmwareVersionParsing';
+import { calculateMidiClockValues } from '../../utilities/calculateMidiClockValues';
+import { splitSysExMessages } from '../../utilities/splitSysExMessages.ts';
 
 const modalStyle = {
     position: 'absolute' as 'absolute',
@@ -38,6 +34,8 @@ const modalStyle = {
     left: '50%',
     transform: 'translate(-50%, -50%)',
     width: 'fit-content',
+    maxHeight: '80vh',
+    overflowY: 'auto',
     bgcolor: '#313239',
     border: '2px solid #000',
     color: 'white',
@@ -45,51 +43,7 @@ const modalStyle = {
     p: 4,
   };
 
-// TODO - make this an iterable type/enum and import it and use it that way instead
-const footswitchFunctions = ['Activate Preset', 'Bank Up', 'Bank Down', 'Preset Up', 'Preset Down', 'Tap: Midi Clock', 'Tap: Utility + Midi Clock'];
-const midiInputChannelOptions = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11', '12', '13', '14', '15', '16', 'Off'];
-
-const GlobalSettings: React.FC<GlobalSettingsProps> = ({ midiAccess, status }) => {
-    const globalSettingsInitialState: GlobalSettingsResponse = {
-        mfxId1: 0,
-        mfxId2: 0,
-        mfxId3: 0,
-        productIdLsb: 0,
-        productIdMsb: 0,
-        commandByte: 0,
-        tapStatus: 127,
-        tapStatusMode: 0,
-        switch1Function: 0,
-        switch2Function: 0,
-        switch3Function: 0,
-        switch4Function: 0,
-        switch5Function: 0,
-        switch6Function: 0,
-        switch7Function: 0,
-        contrast: 0,
-        brightness: 0,
-        controlJackMode: 1,
-        midiClockState: 0,
-        midiClockLsb: 0,
-        midiClockMsb: 0,
-        utilityJackPolarity: 0,
-        utilityJackMode: 1,
-        midiInputChannel: 0,
-    };
-
-    const firmwareVersionInitialState: FirmwareVersionResponse = {
-        mfxId1: 0,
-        mfxId2: 0,
-        mfxId3: 0,
-        productIdLsb: 0,
-        productIdMsb: 0,
-        commandByte: 0,
-        majorVersion10: 0,
-        majorVersion1: 0,
-        minorVersion10: 0,
-        minorVersion1: 0
-    };
-
+const GlobalSettings: React.FC<GlobalSettingsProps> = ({ midiAccess, status, deviceSettings }) => {
     const footswitchDropdownValuesInitialState = {
         switch1Function: footswitchFunctions[0],
         switch2Function: footswitchFunctions[0],
@@ -100,71 +54,38 @@ const GlobalSettings: React.FC<GlobalSettingsProps> = ({ midiAccess, status }) =
         switch7Function: footswitchFunctions[0],
     }
 
-    const [globalSettingsRes, setGlobalSettingsRes] = useState<GlobalSettingsResponse>(globalSettingsInitialState);
-    const [firmwareVersionRes, setFirmwareVersionRes] = useState<FirmwareVersionResponse | {}>(firmwareVersionInitialState);
+    const [globalSettingsRes, setGlobalSettingsRes] = useState<GlobalSettingsResponse>(deviceSettings);
+
     const [bpm, setBpm] = useState<number>(0);
     const [bpmError, setBpmError] = useState<boolean>(false);
+
     const [footswitchDropdownValues, setFootswitchDropdownValues] = useState<object>(footswitchDropdownValuesInitialState);
+
     const [firmwareModalOpen, setFirmwareModalOpen] = useState<boolean>(false);
-    const [markdownContent, setMarkdownContent] = useState<string>(`# Firmware Update
-    **Directions**
-    - Select "Update From File" to select a specific local update file **OR**
-    - Select "Update From The Web" to update to the latest version
-    - The release notes will appear here
-    - To update, press the "Update" button
-    -  To quit, press the "Cancel" button
-    ---
-    *If no release notes are displayed, no release notes were found for this release.*`);
-    const [installedFirmwareVersion, setInstalledFirmwareVersion] = useState<string>('');
+    const [showUpdateDropdown, setShowUpdateDropdown] = useState<boolean>(false);
+    const [updateDropdownOptions, setUpdateDropdownOptions] = useState<AWS.S3.ObjectList>([]);
+    const [showLocalUpdateVersion, setShowLocalUpdateVersion] = useState<boolean>(false);
     const [isFirmwareLoaded, setIsFirmwareLoaded] = useState<boolean>(false);
-    const [selectedUpdateFile, setSelectedUpdateFile] = useState<File | null>(null);
+
+    const [markdownContent, setMarkdownContent] = useState<string>('');
+    const [installedFirmwareVersion, setInstalledFirmwareVersion] = useState<string>('');
+    const [selectedUpdateFile, setSelectedUpdateFile] = useState<Uint8Array | null>(null);
+    const [selectedCloudUpdateFile, setSelectedCloudUpdateFile] = useState<string>('');
+    const [selectedLocalUpdateFile, setSelectedLocalUpdateFile] = useState<string>('Not Selected');
+
     const [downloadProgress, setDownloadProgress] = useState<number>(0);
+    const [showProgressBar, setShowProgressBar] = useState<boolean>(false);
 
     let output: MidiOutputRef = useRef({} as WebMidi.MIDIOutput);
-
-    const debounce = (func: Function, delay: number) => {
-        let timeoutId: NodeJS.Timeout;
-        return (...args: any[]) => {
-          clearTimeout(timeoutId);
-          timeoutId = setTimeout(() => {
-            func(...args);
-          }, delay);
-        };
-      };
-
-    const calculateMidiClockValues = (tempo: number) => {
-        const midiClockMSB = Math.floor(tempo / 128);
-        const midiClockLSB = tempo % 128;
-
-        return { LSB: midiClockLSB, MSB: midiClockMSB };
-    };
-
-    const retrieveAsciiCharacter = (value: number) => {
-        try {   
-          // Check if the value is within the valid ASCII range (32 to 126)
-          if (value < 32 || value > 126) {
-            throw new Error('Invalid ASCII value');
-          }
-          
-          // Convert integer to ASCII character
-          const charCode = parseInt(String(value), 10);
-          const asciiChar = String.fromCharCode(charCode);
-          
-          return asciiChar;
-        } catch (error) {
-          console.error('Error converting hexadecimal to ASCII:', error);
-        }
-      };
 
     const validateBpm = (value: string) => {
         const valueAsNum = parseInt(value);
         // Validation for Midi Clock BPM
         if(valueAsNum < 30 && valueAsNum !== 0) {
-            // TODO - Create detailed error handling around this
             setBpmError(true);
             updateSetting('midiClockMsb', 30);
         }
-        else if(valueAsNum >= 300) {
+        else if(valueAsNum > 300) {
             setBpmError(true);
             updateSetting('midiClockMsb', 300);
         }
@@ -184,183 +105,202 @@ const GlobalSettings: React.FC<GlobalSettingsProps> = ({ midiAccess, status }) =
         handleBpmInput(value);
     }
 
-    const fetchMarkdown = async (path?: string) => {
-        const pathToMarkdown = path ?? '../../../public/markdown/firmwareUpdateInstructions.txt';
-
-        try {
-          const response = await fetch('../../../public/markdown/firmwareUpdateInstructions.txt');
-          console.log('Response from Markdown Fetch: ', response)
-          const text = await response.text();
-          console.log('Markdown Text: ', text)
-        //   setMarkdownContent(text);
-        } catch (error) {
-          console.error('Error fetching markdown file:', error);
-        }
-    };
-
-    const formatFilename = (name: string) => {
-       return name.replace('Futurist-V', '').replace('.syx', '').replace('-', '.');
+    const handleZipFile = (zipData: AWS.S3.Body | File) => {
+        //@ts-ignore
+        JSZip.loadAsync(zipData).then(zip => {
+            zip.forEach((relativePath, zipEntry) => {
+                if (zipEntry.name.endsWith('.syx')) {
+                    zipEntry.async('arraybuffer').then(content => {
+                        setSelectedUpdateFile(new Uint8Array(content));
+                        setIsFirmwareLoaded(true);
+                    });
+                } else if (zipEntry.name.endsWith('.txt')) {
+                    zipEntry.async('text').then(async content => {
+                        const newMarkdown = await marked.parse(content);
+                        setMarkdownContent(newMarkdown);
+                    });
+                }
+            });
+        }).catch(error => {
+            console.error('Error handling ZIP file:', error);
+            alert('Error handling ZIP file: ' + error.message);
+        });
     }
 
-    const handleUpdateFirmwareVersion = () => {
+    function listFilesFromS3(bucketName: string) {
+        AWS.config.update({
+            region: 'us-west-2',
+            credentials: new AWS.Credentials(AWS_ACCESS_KEY, AWS_SECRET)
+        });
+
+        const s3 = new AWS.S3();
+        const params = {
+            Bucket: bucketName
+        };
+
+        s3.listObjectsV2(params, (err, data) => {
+            if (err) {
+                console.error('Error listing files from cloud:', err);
+                alert('Error listing files from cloud: ' + err.message);
+            } else if(data.Contents) {
+                const files = data.Contents;
+
+                // Sort files by LastModified date in descending order (newest first)
+                files.sort((a, b) => {
+                    let result = 0;
+                    if(b.LastModified && a.LastModified) {
+                       result = b.LastModified > a.LastModified ? 1 : -1;
+                    }
+
+                    return result;
+                });
+
+                setUpdateDropdownOptions(files);
+
+                // Set the first (newest) file as the selected option
+                const newestFile = files[0];
+                if(newestFile.Key) {
+                    setSelectedCloudUpdateFile(newestFile.Key);
+                    fetchFileFromS3(bucketName, newestFile.Key); // Automatically fetch the newest file
+                }
+            }
+        });
+    }
+
+    const fetchFileFromS3 = (bucketName: string, key: string) => {
+        AWS.config.update({
+            region: 'us-west-2',
+            credentials: new AWS.Credentials(AWS_ACCESS_KEY, AWS_SECRET)
+        });
+
+        const s3 = new AWS.S3();
+        const params = {
+            Bucket: bucketName,
+            Key: key
+        };
+
+        s3.getObject(params, (error, data) => {
+            if (error) {
+                console.error('Error fetching file:', error);
+                alert('Error fetching file: ' + error.message);
+            } else if(data.Body) {
+                // Handle the file based on its extension
+                if (key.endsWith('.zip')) {
+                    handleZipFile(data.Body);
+                } else if (key.endsWith('.syx')) {
+                    const encoder = new TextEncoder();
+                    const bodyAsArray = encoder.encode(data.Body.toString());
+
+                    setSelectedUpdateFile(bodyAsArray);
+                    setIsFirmwareLoaded(true);
+                } else {
+                    alert('Unsupported file type. Please select a .syx or .zip file from the cloud.');
+                }
+            }
+        });
+    }
+
+    const handleUpdateModal = async () => {
         if(output.current?.send) {
             output.current.send(messages.firmwareUpdateVersionRequest.messageData);
         }
 
-        fetchMarkdown();
+        const markdown = await marked.parse(markdownInstructions);
+        setMarkdownContent(markdown);
         setFirmwareModalOpen(true);
-    }
-
-    const parseInstalledFirmwareVersion = (response: FirmwareVersionResponse) => {
-        const { majorVersion1, majorVersion10, minorVersion1, minorVersion10 } = response;
-        const version = `${majorVersion10 === 32 ? '': retrieveAsciiCharacter(majorVersion10)}${retrieveAsciiCharacter(majorVersion1)}.${retrieveAsciiCharacter(minorVersion10)}${minorVersion1 === 32 ? '': retrieveAsciiCharacter(minorVersion1)}`;
-        setInstalledFirmwareVersion(version);
     }
 
     const handleFileChange = (event: ChangeEvent<HTMLInputElement>) => {
         const file = event.target.files?.[0];
         if (file) {
-          setSelectedUpdateFile(file);
-          setIsFirmwareLoaded(true);
+            setSelectedLocalUpdateFile(file.name);
+            setShowLocalUpdateVersion(true);
+
+            if (file.name.endsWith('.zip')) {
+                handleZipFile(file);
+            } else if (file.name.endsWith('.syx')) {
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    const result = e.target?.result;
+                    if(result && typeof result !== 'string') {
+                        setSelectedUpdateFile(new Uint8Array(result));
+                        setIsFirmwareLoaded(true);
+                    }
+                };
+                reader.readAsArrayBuffer(file);
+            } else {
+                alert('Unsupported file type. Please upload a .syx or .zip file.');
+            }
         }
     };
 
-    const handleUpdateFromFile = () => {
-        // 1. Open file explorer
-        document.getElementById('fileInput')?.click();
-        // 2. Allow user to select update file
-        // 3. Once selected, store update data in state as if being done via Web
+    const handleSelectCloudFile = (event: SelectChangeEvent) => {
+        setSelectedCloudUpdateFile(event.target.value);
+        fetchFileFromS3('matthewseffects-futuristfirmware', event.target.value);
     }
 
-    const handleUpdateFromWeb = async () => {
-        // 1. Request compressed update folder from AWS bucket
-        // 2. Unzip folder
-        // 3. Store markdown in state
-        // 4. Store download data in state
+    const handleUpdateFromFile = () => {
+        setShowUpdateDropdown(false);
+        setSelectedUpdateFile(null);
+        document.getElementById('fileInput')?.click();
+    }
 
-        try {
-            const awsResponse = await axios.get('s3://matthewseffects-futuristfirmware/Futurist-V03-03.zip');
-            console.log('Response Type: ', typeof awsResponse.data);
+    const handleUpdateFromWeb = () => {
+        setShowLocalUpdateVersion(false);
+        listFilesFromS3('matthewseffects-futuristfirmware');
+        setSelectedUpdateFile(null);
+        setShowUpdateDropdown(true);
+    };
+
+    const resetModalDefaults = () => {
+        setShowUpdateDropdown(false);
+        setUpdateDropdownOptions([]);
+        setShowLocalUpdateVersion(false);
+        setIsFirmwareLoaded(false);
+
+        setMarkdownContent('');
+        setInstalledFirmwareVersion('');
+        setSelectedUpdateFile(null);
+        setSelectedCloudUpdateFile('');
+        setSelectedLocalUpdateFile('Not Selected');
+    }
+
+    const sendSysExData = (selectedOutput: WebMidi.MIDIOutput, data: Uint8Array, delay: number) => {
+        const sendNextMessage = (messages: number[][], index: number) => {
+            if (index < messages.length) {
+                const message = messages[index];
+                selectedOutput.send(message);
+
+                // Update progress bar
+                const progress = Math.round(((index + 1) / messages.length) * 100);
+                setDownloadProgress(progress);
+
+                setTimeout(() => {
+                    sendNextMessage(messages, index + 1);
+                }, delay); // Fixed delay between messages
+            } else {
+                setShowProgressBar(false);
+                closeModal();
+            }
         }
-        catch (error) {
-            console.error(error);
-        }
 
-        // Method 2 - With Unzip
-        // try {
-        //     const response = await fetch('s3://matthewseffects-futuristfirmware/Futurist-V03-03.zip');
-        //     const reader = response.body?.getReader();
-      
-        //     if (!reader) {
-        //       throw new Error('Failed to get reader from response body');
-        //     }
-      
-        //     const totalLength = Number(response.headers.get('Content-Length'));
-        //     let downloadedLength = 0;
-      
-        //     const unzipStream = unzipper.Parse();
-      
-        //     unzipStream.on('entry', (entry) => {
-        //       // Handle each entry in the zip file
-        //       // Here you can extract files or do whatever you need with them
-        //       // For example, you can extract text files and set the content in state
-        //       entry.on('data', (data: Buffer) => {
-        //         // Handle entry data
-        //       });
-      
-        //       entry.on('end', () => {
-        //         // Entry processing complete
-        //       });
-      
-        //       entry.autodrain();
-        //     });
-      
-        //     const stream = response.body?.pipe(unzipStream);
-      
-        //     if (!stream) {
-        //       throw new Error('Failed to create unzip stream');
-        //     }
-      
-        //     stream.on('data', (chunk) => {
-        //       // Update download progress
-        //       downloadedLength += chunk.length;
-        //       const progress = (downloadedLength / totalLength) * 100;
-        //       setDownloadProgress(progress);
-        //     });
-      
-        //     stream.on('end', () => {
-        //       // All data has been read
-        //       console.log('Unzipping complete');
-        //     });
-        //   } catch (error) {
-        //     console.error('Error downloading or unzipping file:', error);
-        //   }
-
-        // const xhr = new XMLHttpRequest();
-        // const url = 's3://matthewseffects-futuristfirmware/Futurist-V03-03.zip';
-
-        // xhr.open('GET', url, true);
-        // xhr.responseType = 'blob';
-
-        // xhr.onprogress = (event) => {
-        // if (event.lengthComputable) {
-        //     const progress = (event.loaded / event.total) * 100;
-        //     setDownloadProgress(progress);
-        // }
-        // };
-
-        // xhr.onload = async () => {
-        // if (xhr.status === 200) {
-        //     const blob = xhr.response;
-        //     const zip = new JSZip();
-        //     const zipContent = await zip.loadAsync(blob);
-
-        //     // Log the filenames
-        //     zipContent.forEach((relativePath, file) => {
-        //     console.log('File:', relativePath);
-        //     });
-        // }
-        // };
-
-        // xhr.onerror = () => {
-        // console.error('Error downloading file');
-        // };
-
-        // xhr.send();
-        // setIsFirmwareLoaded(true);
-      };
+        const messages = splitSysExMessages(data);
+        sendNextMessage(messages, 0);  
+    }
 
     const handleUpdateFirmware = () => {
-        // Send midi message to device with firmware data from state
-        const messageToSend = messages.firmwareUpdateRequest.messageData;
-        const reader = selectedUpdateFile?.stream().getReader();
-        const updateData: number[] = [];
-
-        function push() {
-            // "done" is a Boolean and value a "Uint8Array"
-            if(reader) {
-            reader.read().then(({ done, value }) => {
-              // If there is no more data to read
-              if (done) {
-                console.log("done", done);
-                return;
-              }
-              
-              // Check chunks by logging to the console
-              console.log(done, value);
-              push();
-            });
-           }
-          }
-  
-          push();
-
-        // Replace unused byte with the data from the selected update file
-        messageToSend.splice(7, 1, ...updateData);
-        if(output.current?.send) {
-            console.log(messageToSend);
-            output.current.send(messageToSend);
+        if (output.current && selectedUpdateFile) {
+            setShowProgressBar(true);
+            setDownloadProgress(0);
+            sendSysExData(output.current, selectedUpdateFile, messageDelay);
+        } else {
+            alert('Please select a MIDI device and upload a SysEx file.');
         }
+    }
+
+    const closeModal = () => {
+        setFirmwareModalOpen(false);
+        resetModalDefaults();
     }
     
     const updateSetting = (setting: string, newValue: string | number) => {
@@ -409,13 +349,14 @@ const GlobalSettings: React.FC<GlobalSettingsProps> = ({ midiAccess, status }) =
             messageToWrite.push(0xf7);
             // Set command byte to "global settings write"
             messageToWrite[6] = 0x22;
-            output.current?.send(messageToWrite);
+            if(output.current?.send) {
+                output.current?.send(messageToWrite);
+            }
         }
     }
 
     useEffect(() => {
         const handleMidiMessage = (event: WebMidi.MIDIMessageEvent) => {
-            console.log('Midi Message Received: ', event.data);
             // TODO: Write function for parsing based on the response that was sent
             if (checkIfSysex(event.data)) {
               // Parse response into the appropriate object
@@ -426,9 +367,10 @@ const GlobalSettings: React.FC<GlobalSettingsProps> = ({ midiAccess, status }) =
               switch(responseType) {
                 case 'globalSettingsResponse': 
                   const gSResponse: GlobalSettingsResponse = {
-                  mfxId1: event.data[1],
-                  mfxId2: event.data[2],
-                  mfxId3: event.data[3],
+                  // MFX IDs should be constant
+                  mfxId1: mfxId1,
+                  mfxId2: mfxId2,
+                  mfxId3: mfxId3,
                   productIdLsb: event.data[4],
                   productIdMsb: event.data[5],
                   commandByte: event.data[6],
@@ -455,9 +397,9 @@ const GlobalSettings: React.FC<GlobalSettingsProps> = ({ midiAccess, status }) =
                 break;
               case 'firmwareVersionResponse':
                 const fvResponse: FirmwareVersionResponse = {
-                mfxId1: event.data[1],
-                mfxId2: event.data[2],
-                mfxId3: event.data[3],
+                mfxId1: mfxId1,
+                mfxId2: mfxId2,
+                mfxId3: mfxId3,
                 productIdMsb: event.data[4],
                 productIdLsb: event.data[5],
                 commandByte: event.data[6],
@@ -466,8 +408,7 @@ const GlobalSettings: React.FC<GlobalSettingsProps> = ({ midiAccess, status }) =
                 minorVersion10: event.data[9],
                 minorVersion1: event.data[10]
                 };
-                setFirmwareVersionRes(fvResponse);
-                parseInstalledFirmwareVersion(fvResponse);
+                setInstalledFirmwareVersion(parseInstalledFirmwareVersion(fvResponse));
                 break;
             default:
               }
@@ -482,12 +423,34 @@ const GlobalSettings: React.FC<GlobalSettingsProps> = ({ midiAccess, status }) =
         }
     }, [])
 
-    useEffect(() => {
-        // Retrieve Global Settings on page load
-        if(output.current?.send) {
-            output.current.send(messages.globalSettingsRequest.messageData);
-        }
-    }, [])
+    // useEffect(() => {
+    //     const sendInitialMessage = async () => {
+    //         try {
+    //           if (output.current?.state === 'connected' && output.current?.connection !== 'open') {
+    //             await output.current.open();
+    //             if(output.current?.send) {
+    //                 console.log('Initial GS Mess to send: ', messages.globalSettingsRequest.messageData)
+    //                 output.current.send(messages.globalSettingsRequest.messageData);
+    //             }   
+    //           }    
+    //         } catch (error) {
+    //           console.error('Failed to send MIDI message', error);
+    //         }
+    //       };
+
+    //     //   sendInitialMessage();
+
+    //     // Retrieve Global Settings on page load
+    //     // console.log('Current output: ', output.current)
+    //     // if(output.current?.send) {
+    //     //     console.log('Initial GS Mess to send: ', messages.globalSettingsRequest.messageData)
+    //     //     output.current.send(messages.globalSettingsRequest.messageData);
+    //     // }
+    // }, [])
+
+    // if(!output.current || output.current.state === 'disconnected' || output.current.connection !== 'open') {
+    //     return <CircularProgress />
+    // }
 
     return (
         <>
@@ -501,9 +464,7 @@ const GlobalSettings: React.FC<GlobalSettingsProps> = ({ midiAccess, status }) =
                         <h3>Foot Switch Settings</h3>
                         <div>
                         <span style={{ width: '100%' }}>
-                            {/* <label htmlFor={"sw1"}>{"1"}</label> */}
                             <FormControl>
-                                {/* <InputLabel id="sw1-label" style={{ color: 'white' }}>Function 1</InputLabel> */}
                                 <Select
                                     autoWidth
                                     id="sw1"
@@ -519,9 +480,7 @@ const GlobalSettings: React.FC<GlobalSettingsProps> = ({ midiAccess, status }) =
                         
                         <div>
                         <span>
-                            {/* <label htmlFor={"sw2"}>{"2"}</label> */}
                             <FormControl>
-                                {/* <InputLabel id="sw2-label" style={{ color: 'white' }}>Function 2</InputLabel> */}
                                 <Select
                                     autoWidth
                                     id="sw2"
@@ -537,9 +496,7 @@ const GlobalSettings: React.FC<GlobalSettingsProps> = ({ midiAccess, status }) =
                         
                         <div>
                         <span>
-                            {/* <label htmlFor={"sw3"}>{"3"}</label> */}
                             <FormControl>
-                                {/* <InputLabel id="sw3-label" style={{ color: 'white' }}>Function 3</InputLabel> */}
                                 <Select
                                     autoWidth
                                     id="sw3"
@@ -555,9 +512,7 @@ const GlobalSettings: React.FC<GlobalSettingsProps> = ({ midiAccess, status }) =
                         
                         <div>
                         <span>
-                            {/* <label htmlFor={"sw4"}>{"4"}</label> */}
                             <FormControl>
-                                {/* <InputLabel id="sw4-label" style={{ color: 'white' }}>Function 4</InputLabel> */}
                                 <Select
                                     autoWidth
                                     id="sw4"
@@ -609,14 +564,18 @@ const GlobalSettings: React.FC<GlobalSettingsProps> = ({ midiAccess, status }) =
                                     max: 300
                                 }}
                             />
-                            <FormControl>
-                                <Checkbox
-                                    id="midiClockState"
-                                    checked={globalSettingsRes.midiClockState === 1}
-                                    sx={{ borderColor: 'white' }}
-                                    onChange={(event) => updateSetting('midiClockState', event.target.checked ? '1' : '0')}
-                                />
-                            </FormControl>
+                                <FormControlLabel
+                                            control={
+                                            <Switch
+                                                checked={globalSettingsRes.midiClockState === 1}
+                                                onChange={(event) => updateSetting('midiClockState', event.target.checked ? '1' : '0')}
+                                                id="midiClockState"
+                                                color="primary"
+                                            />
+                                            }
+                                            label={globalSettingsRes.midiClockState ? "On" : "Off"}
+                                            sx={{ marginLeft: '10px' }}
+                                    />
                             {bpmError && <div style={{color: 'red'}}>{"Value must be between 30 and 300"}</div>}
                         </div>
                     </div>
@@ -710,7 +669,7 @@ const GlobalSettings: React.FC<GlobalSettingsProps> = ({ midiAccess, status }) =
                         </div>
                     </div>
                     <div style={{ paddingTop: '1rem' }}>
-                        <Button onClick={handleUpdateFirmwareVersion} style={{ width: '80%' }} variant='outlined'>Update Firmware</Button>
+                        <Button onClick={handleUpdateModal} style={{ width: '80%' }} variant='outlined'>Update Firmware</Button>
                     </div>
                     </div> 
                     </Grid>
@@ -726,19 +685,32 @@ const GlobalSettings: React.FC<GlobalSettingsProps> = ({ midiAccess, status }) =
                         </div>
                         <div id="modal-modal-description">
                             <p>{`Installed Firmware: ${installedFirmwareVersion}`}</p>
-                            <p>{`File Firmware: ${selectedUpdateFile?.name ? formatFilename(selectedUpdateFile.name) : 'Not Selected'}`}</p>
+                            {showLocalUpdateVersion && (<p>{`Selected File Firmware: ${selectedLocalUpdateFile}`}</p>)} 
                             <input
                                 id="fileInput"
                                 type="file"
-                                accept='.syx'
+                                accept='.syx, .zip'
                                 style={{ display: 'none' }}
                                 onChange={handleFileChange}
                             />
+                             {showUpdateDropdown && (<FormControl>
+                                <span>Select Update Version:
+                                <Select
+                                    autoWidth
+                                    id="cloud-files-dropdown"
+                                    value={selectedCloudUpdateFile}
+                                    onChange={handleSelectCloudFile}
+                                    style={{ backgroundColor: 'gray', color: 'white', height: '2rem', marginBottom: '10px', marginLeft: '10px' }}
+                                    >
+                                    {updateDropdownOptions.map((option) => <MenuItem key={option.Key} value={option.Key}>{option.Key}</MenuItem>)}
+                                </Select>
+                                </span>
+                        </FormControl>)}                                  
                         </div>
-                        <Box><ReactMarkdown children={markdownContent}></ReactMarkdown></Box>
-                        <LinearProgress variant='determinate' value={downloadProgress} />
+                        <Box sx={{ overflow: 'hidden' }}><div dangerouslySetInnerHTML={{ __html: markdownContent }}/></Box>
+                        <LinearProgress variant='determinate' value={downloadProgress} sx={{ display: showProgressBar ? 'inherit' : 'none' }} />
                         <div style={{ display: 'flex', justifyContent: 'space-between', paddingTop: '1rem' }}>
-                            <Button variant='contained' onClick={() => setFirmwareModalOpen(false)} sx={{ width: '50%', mr: '5px' }}>Cancel</Button>
+                            <Button variant='contained' onClick={closeModal} sx={{ width: '50%', mr: '5px' }}>Cancel</Button>
                             <Button variant='contained' disabled={!isFirmwareLoaded} onClick={handleUpdateFirmware} sx={{ width: '50%' }}>Update</Button>
                         </div>
                         </Box>

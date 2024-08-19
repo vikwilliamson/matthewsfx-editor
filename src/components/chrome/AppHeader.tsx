@@ -10,14 +10,14 @@ import Tabs from '@mui/material/Tabs';
 import Tab from '@mui/material/Tab';
 // ASSETS/DATA
 import logo  from '../../assets/V2_SMOOTH_ME_LOGO_White.png'
-import { EditorTab, SetStateAction } from '../../types';
+import { EditorTab } from '../../types';
 
 
 type AppHeaderProps = {
     currentTab: EditorTab;
     device: WebMidi.MIDIInput | null;
     setDevice: (event: SelectChangeEvent) => void;
-    handleSelectTab: SetStateAction<EditorTab>;
+    handleSelectTab: (tab: EditorTab) => void;
     midiDevices: WebMidi.MIDIInput[];
     status: string;
 }
@@ -36,17 +36,28 @@ const AppHeader: React.FC<AppHeaderProps> = ({ currentTab, device, setDevice, ha
     return(
         <>
             <div className="app-header" style={{ backgroundColor: '#222327', display: 'flex', justifyContent: 'space-around', alignItems: 'center' }}>
+                    {/* <FormControl>
+                        <Select
+                            autoWidth
+                            id="product-selection-dropdown"
+                            value={selectedProduct}
+                            onChange={handleProductSelection}
+                            disabled={true}
+                            style={{ backgroundColor: 'gray', color: 'white', opacity: '50%', minWidth: '10rem', marginLeft: '10px' }}
+                        >
+                        <MenuItem id="futurist" value="The Futurist">The Futurist</MenuItem>
+                        <MenuItem id="newCreation" value="New Creation">New Creation</MenuItem>
+                    </Select>
+                    </FormControl> */}
                     <FormControl>
                         <Select
                             autoWidth
                             id="device-selection-dropdown"
                             value={device?.id || ''}
                             onChange={setDevice}
-                            disabled={true}
-                            style={{ backgroundColor: 'gray', color: 'white', opacity: '50%', minWidth: '10rem', marginLeft: '10px' }}
+                            style={{ backgroundColor: 'gray', color: 'white', opacity: '50%', minWidth: '10rem', marginLeft: '20px' }}
                         >
-                        <MenuItem id="futurist" value="The Futurist">The Futurist</MenuItem>
-                        <MenuItem id="newCreation" value="New Creation">New Creation</MenuItem>
+                        {midiDevices.map((midiDevice) => <MenuItem id={midiDevice.id} key={midiDevice.id} value={midiDevice.id}>{device?.name}</MenuItem>)}
                     </Select>
                     </FormControl>
                     <div style={{ flexGrow: 2, marginTop: '0.5rem' }} className='logo-container'>
