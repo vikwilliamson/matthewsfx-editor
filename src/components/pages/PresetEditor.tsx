@@ -12,18 +12,24 @@ import Tab from "@mui/material/Tab";
 import Switch from "@mui/material/Switch";
 import FormControlLabel from "@mui/material/FormControlLabel";
 // DATA/UTILS
-import { expressionChannelOptions, utilityModeOptions } from "../../utilities/constants";
+import { messageModeOptions, messageTypeOptions, numericChannelOptions, utilityModeOptions } from "../../utilities/constants";
 
 const PresetEditor: React.FC = () => {
     let bankOptions = new Array(30).fill('').map((option, i) => `Bank ${i+1}`);
     let presetOptions = new Array(7).fill('').map((option, i) => `Preset ${i+1}`);
-    // TODO: compare these channel options to the ones for midi channel input on global settings page
-    // If they are similar then export the number array from constants.ts
 
     const [selectedBank, setSelectedBank] = useState<string>('0');
     const [selectedPreset, setSelectedPreset] = useState<string>('0');
     const [selectedPresetName, setSelectedPresetName] = useState<string>('');
     const [selectedPresetDescription, setSelectedPresetDescription] = useState<string>('');
+
+    const [isManual, setIsManual] = useState<boolean>(false);
+    const [messageMode, setMessageMode] = useState<string | number>("");
+    const [messageChannel, setMessageChannel] = useState<string | number>(1);
+    const [messageType, setMessageType] = useState<string>("");
+    const [ccNumberInput, setCcNumberInput] = useState<string>("");
+    const [messageValueInput, setMessageValueInput] = useState<string>("");
+
 
     const [expressionStatus, setExpressionStatus] = useState<boolean>(false);
     const [expressionChannel, setExpressionChannel] = useState<string | number>(0);
@@ -34,7 +40,6 @@ const PresetEditor: React.FC = () => {
     const [utilityBPM, setUtilityBPM] = useState<string>('');
 
     const [midiClockStatus, setMidiClockStatus] = useState<boolean>(false);
-    // TODO: Refactor below actions into an enum
     const [midiOnPressAction, setMidiOnPressAction] = useState<boolean>(true);
     const [midiBPM, setMidiBPM] = useState<string>('');
 
@@ -108,11 +113,64 @@ const PresetEditor: React.FC = () => {
                             <Tab label={15} value={15} />
                             <Tab label={16} value={16} />
                         </Tabs>
-                        <Box>
-                            <Button variant='outlined' onClick={() => alert('Manual Creation!')} sx={{ marginLeft: '10px' }}>Manual</Button>
-                            <Button variant='outlined' onClick={() => alert('Smart Creation!')} sx={{ marginLeft: '10px' }}>Smart</Button>
-                            <Button variant='outlined' onClick={() => alert('Custom Creation!')} sx={{ marginLeft: '10px' }}>Custom</Button>
-                            <p color='white'>Select to create a message.</p>
+                        <Box sx={{ mt: 1 }}>
+                            {
+                                !isManual && (<>
+                                    <Button variant='outlined' onClick={() => setIsManual(true)} sx={{ marginLeft: '10px' }}>Manual</Button>
+                                    <Button variant='outlined' onClick={() => alert('Smart Creation!')} sx={{ marginLeft: '10px' }}>Smart</Button>
+                                    <Button variant='outlined' onClick={() => alert('Custom Creation!')} sx={{ marginLeft: '10px' }}>Custom</Button>
+                                    <p color='white'>Select to create a message.</p>
+                                </>)
+                            }
+                            {
+                                isManual && (<Box sx={{ display: 'flex', flexDirection: 'row' }}>
+                                    <FormControl>
+                                        <Select
+                                            autoWidth
+                                            id="message-mode"
+                                            value={messageMode}
+                                            onChange={(event) => setMessageMode(event.target.value)}
+                                            style={{ backgroundColor: 'gray', color: 'white', height: '2rem', width: '5rem', marginBottom: '10px', marginLeft: '10px' }}
+                                            >
+                                            {messageModeOptions.map((option, i) => <MenuItem key={`messageModeOption${i}`} value={i}>{option}</MenuItem>)}
+                                        </Select>
+                                    </FormControl>
+                                    <FormControl>
+                                        <Select
+                                            autoWidth
+                                            id="message-channel"
+                                            value={messageChannel}
+                                            onChange={(event) => setMessageChannel(event.target.value)}
+                                            style={{ backgroundColor: 'gray', color: 'white', height: '2rem', width: '5rem', marginBottom: '10px', marginLeft: '10px' }}
+                                            >
+                                            {numericChannelOptions.map((option, i) => <MenuItem key={`messageChannelOption${i}`} value={i}>{option}</MenuItem>)}
+                                        </Select>
+                                    </FormControl>
+                                    <FormControl>
+                                        <Select
+                                            autoWidth
+                                            id="message-type"
+                                            value={messageType}
+                                            onChange={(event) => setMessageType(event.target.value)}
+                                            style={{ backgroundColor: 'gray', color: 'white', height: '2rem', width: '5rem', marginBottom: '10px', marginLeft: '10px' }}
+                                            >
+                                            {messageTypeOptions.map((option, i) => <MenuItem key={`messageTypeOption${i}`} value={i}>{option}</MenuItem>)}
+                                        </Select>
+                                    </FormControl>
+                                    <TextField
+                                    id="cc-number-input"
+                                    value={ccNumberInput}
+                                    onChange={(event) => setCcNumberInput(event.target.value)}
+                                    sx={{ backgroundColor: 'gray', color: 'white', height: '2rem', width: '25%', marginLeft: '10px' }}
+                                />
+                                <TextField
+                                    id="message-value-input"
+                                    value={messageValueInput}
+                                    onChange={(event) => setMessageValueInput(event.target.value)}
+                                    sx={{ backgroundColor: 'gray', color: 'white', height: '2rem', width: '25%', marginLeft: '10px' }}
+                                />
+                                </Box>)
+                            }
                         </Box>
                         <Box sx={{ display: 'flex', flexDirection: 'row', justifyContent: 'center' }}>
                             <Box sx={{ display: 'flex', flexDirection: 'column', textAlign: 'left', marginRight: '10px' }}>
@@ -140,7 +198,7 @@ const PresetEditor: React.FC = () => {
                                             onChange={(event) => setExpressionChannel(event.target.value)}
                                             style={{ backgroundColor: 'gray', color: 'white', height: '2rem', width: '10rem', marginBottom: '10px', marginLeft: '10px' }}
                                             >
-                                            {expressionChannelOptions.map((option, i) => <MenuItem key={`expressionChannelOption${i}`} value={i}>{option}</MenuItem>)}
+                                            {numericChannelOptions.map((option, i) => <MenuItem key={`expressionChannelOption${i}`} value={i}>{option}</MenuItem>)}
                                         </Select>
                                     </FormControl>
                                 </span>
@@ -229,7 +287,7 @@ const PresetEditor: React.FC = () => {
                     <Box id='preset-actions' sx={{ display: 'flex', flexDirection: 'column', marginLeft: '50px', marginTop: '10px' }}>
                         <Button variant='outlined' onClick={() => alert('Update Preset!')} sx={{ marginLeft: '10px' }}>Update Preset</Button>
                         <Button variant='outlined' onClick={() => alert('Save as New!')} sx={{ marginLeft: '10px' }}>Save as New</Button>
-                        <Button variant='outlined' onClick={() => alert('Clear!')} sx={{ marginLeft: '10px' }}>Clear</Button>
+                        <Button variant='outlined' onClick={() => setIsManual(false)} sx={{ marginLeft: '10px' }}>Clear</Button>
                         <Button variant='outlined' onClick={() => alert('Cancel!')} sx={{ marginLeft: '10px' }}>Cancel</Button>
                     </Box>
                 </Box>
