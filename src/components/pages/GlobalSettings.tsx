@@ -106,20 +106,16 @@ const GlobalSettings: React.FC<GlobalSettingsProps> = ({ midiAccess, status, dev
     }
 
     const handleZipFile = (zipData: AWS.S3.Body | File) => {
-        console.log('Processing ZIP file');
         //@ts-ignore
         JSZip.loadAsync(zipData).then(zip => {
             zip.forEach((relativePath, zipEntry) => {
-                console.log('Found entry in ZIP:', zipEntry.name);
                 if (zipEntry.name.endsWith('.syx')) {
                     zipEntry.async('arraybuffer').then(content => {
                         setSelectedUpdateFile(new Uint8Array(content));
                         setIsFirmwareLoaded(true);
-                        alert('file loaded from cloud');
                     });
                 } else if (zipEntry.name.endsWith('.txt')) {
                     zipEntry.async('text').then(async content => {
-                        console.log('Text file content:', content);
                         const newMarkdown = await marked.parse(content);
                         setMarkdownContent(newMarkdown);
                     });
@@ -197,7 +193,6 @@ const GlobalSettings: React.FC<GlobalSettingsProps> = ({ midiAccess, status, dev
 
                     setSelectedUpdateFile(bodyAsArray);
                     setIsFirmwareLoaded(true);
-                    alert('file loaded from cloud');
                 } else {
                     alert('Unsupported file type. Please select a .syx or .zip file from the cloud.');
                 }
@@ -284,7 +279,6 @@ const GlobalSettings: React.FC<GlobalSettingsProps> = ({ midiAccess, status, dev
                     sendNextMessage(messages, index + 1);
                 }, delay); // Fixed delay between messages
             } else {
-                alert('All data sent!');
                 setShowProgressBar(false);
                 closeModal();
             }
@@ -355,7 +349,6 @@ const GlobalSettings: React.FC<GlobalSettingsProps> = ({ midiAccess, status, dev
             messageToWrite.push(0xf7);
             // Set command byte to "global settings write"
             messageToWrite[6] = 0x22;
-            console.log('Mess to write: ', messageToWrite);
             if(output.current?.send) {
                 output.current?.send(messageToWrite);
             }
@@ -364,7 +357,6 @@ const GlobalSettings: React.FC<GlobalSettingsProps> = ({ midiAccess, status, dev
 
     useEffect(() => {
         const handleMidiMessage = (event: WebMidi.MIDIMessageEvent) => {
-            console.log('Midi Message Received: ', event.data);
             // TODO: Write function for parsing based on the response that was sent
             if (checkIfSysex(event.data)) {
               // Parse response into the appropriate object
