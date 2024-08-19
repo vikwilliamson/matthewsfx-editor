@@ -183,6 +183,7 @@ const App: React.FC = () => {
         try {
           const access = await navigator.requestMIDIAccess({ sysex: true });
           setMidiAccessObject(access);
+          updateMidiDevices(access);
           
           // Check for available MIDI devices on initial load
           const devices = access.inputs.values();
